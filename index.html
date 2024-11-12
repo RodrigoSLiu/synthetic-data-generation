@@ -1,40 +1,35 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/webstorm-icon-logo.svg" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WS playground</title>
-  <link rel="stylesheet" href="/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Histogram Example</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
 </head>
 <body>
-<header class="logo">
-  <a href="https://www.jetbrains.com/webstorm/">
-    <img src="/webstorm-logo.svg" alt="WebStorm logo" width="344"
-         height="90">
-  </a>
-</header>
-<main id="app">
-  <h1 class="title">
-    Thank you for trying it out. <br /> Your first project is up and running
-    now.
-  </h1>
-  <section class="counter">
-    <div class="counter-info">
-      <p class="counter-text">Counter is</p>
-      <p class="counter-value" id="counter-value"></p>
-    </div>
-    <div class="counter-interaction">
-      <button id="increaseByOne" type="button">+1</button>
-      <button id="increaseByTwo" type="button">+2</button>
-      <button id="decreaseByOne" type="button">-1</button>
-      <button id="decreaseByTwo" type="button">-2</button>
-    </div>
-  </section>
-</main>
-<footer class="technologies">
-  <img src="/technologies.svg" alt="List of supported technologies">
-</footer>
-<script type="module" src="/src/main.js"></script>
+<h1>Retrieve PGS Data</h1>
+<label for="pgsId">Enter PGS ID:</label>
+<input type="text" id="pgsId" placeholder="PGS ID" required>
+
+<div>
+    <label>Select Build:</label>
+    <input type="radio" id="build37" name="build" value="37" checked>
+    <label for="build37">37</label>
+    <input type="radio" id="build38" name="build" value="38">
+    <label for="build38">38</label>
+</div>
+
+<button id="retrieveButton">Retrieve</button>
+
+<h2 id="snpDisplay">SNP: </h2> <!-- Placeholder for displaying the SNP variable -->
+<h1>Generated Profiles Occurrence Visualization</h1>
+<canvas id="generatedHistogram" width="400" height="300"></canvas>
+<h1>Expected Profiles Occurrence Visualization</h1>
+<canvas id="expectedHistogram" width="400" height="300"></canvas>
+<script src="src/main.js"></script>
 </body>
 </html>
