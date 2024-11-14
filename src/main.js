@@ -25,8 +25,7 @@ async function loadDependencies() {
 }
 
 async function loadScore(entry = 'PGS000004', build = 37) {
-    // Format the entry as a string with leading zeros if needed
-    if (typeof entry === 'number') {
+    if (!isNaN(Number(entry))) {
         entry = entry.toString();
         entry = 'PGS000000'.slice(0, -entry.length) + entry;
     }
@@ -71,8 +70,8 @@ async function getRsId(snpInfo) {
 }
 
 function calculateHardyWeinbergEquilibrium(maf) {
-    const recessiveHomozygousFreq = maf ** 2;
-    const dominantHomozygousFreq = (1 - maf) ** 2;
+    const recessiveHomozygousFreq = Math.pow(maf, 2);
+    const dominantHomozygousFreq = Math.pow((1 - maf), 2);
     const heterozygousFreq = 1 - recessiveHomozygousFreq - dominantHomozygousFreq;
 
     return [dominantHomozygousFreq, heterozygousFreq, recessiveHomozygousFreq];
@@ -96,39 +95,51 @@ async function processSnpData(snpData) {
     await Promise.all(
         snpValues.map(async (snpValue) => {
             const snpInfo = [snpValue[chrNameIndex], snpValue[chrPositionIndex], snpValue[effectAllele], snpValue[otherAllele]];
-            const snpId = await getRsId(snpInfo);
+            //const snpId = await getRsId(snpInfo);
+            const snp = `${snpValue[chrNameIndex]}:${snpValue[chrPositionIndex]}:${snpValue[effectAllele]}:${snpValue[otherAllele]}`;
+            const maf = snpValue[snpAlleleFrequencyIndex];
 
-            if (snpId) { // Check if snpId is valid
-                const maf = snpValue[snpAlleleFrequencyIndex];
-                alleleDosageFrequency[snpId] = calculateHardyWeinbergEquilibrium(maf);
-            }
-            else {
-                console.warn('Missing SNP ID for:', snpInfo);
-            }
+            alleleDosageFrequency[snp] = calculateHardyWeinbergEquilibrium(maf);
+            // if (snpId) { // Check if snpId is valid
+            //     const maf = snpValue[snpAlleleFrequencyIndex];
+            //
+            //     alleleDosageFrequency[snp] = calculateHardyWeinbergEquilibrium(maf);
+            // }
+            // else {
+            //     console.warn('Missing SNP ID for:', snpInfo);
+            // }
         })
     );
 
     return alleleDosageFrequency;
 }
 
-function generateRandomProfile([_, heterozygousFreq, recessiveHomozygousFreq]) {
+function generateAlleleDosage([_, heterozygousFreq, recessiveHomozygousFreq]) {
     const r = Math.random();
-    return r < recessiveHomozygousFreq ? 2 : r < recessiveHomozygousFreq + heterozygousFreq ? 1 : 0;
+
+    return r < recessiveHomozygousFreq ? 2 : (r < recessiveHomozygousFreq + heterozygousFreq ? 1 : 0);
 }
 
-function processProfiles(alleleData, numberOfProfiles) {
+async function processProfiles(alleleData, totalProfiles, batchSize = 1000) {
     const queryProfiles = [];
 
-    Array.from({ length: numberOfProfiles }).forEach((_, i) => {
-        const profile = { id: `Q-${i}` };
+    for (let i = 0; i < totalProfiles; i += batchSize) {
+        const batch = Array.from({ length: Math.min(batchSize, totalProfiles - i) }).map((_, j) => {
+            const profile = { id: `Q-${i + j}` };
 
-        Object.keys(alleleData).forEach(key => {
-            profile[key] = generateRandomProfile(alleleData[key]);
+            Object.keys(alleleData).forEach(key => {
+                profile[key] = generateAlleleDosage(alleleData[key]);
+            });
+            return profile;
         });
-        queryProfiles.push(profile);
-    });
+        queryProfiles.push(...batch);
+    }
 
     return queryProfiles;
+}
+
+function calculateScore(profiles, effectWeight) {
+
 }
 
 function countOccurrences(snpId, profiles) {
@@ -146,70 +157,123 @@ function countOccurrences(snpId, profiles) {
 }
 
 function renderHistogram(counts, element, numberOfProfiles) {
-    const canvas = document.getElementById(element);
-    const ctx = canvas.getContext('2d');
+    window.requestAnimationFrame(() => {
+            const canvas = document.getElementById(element);
+            const ctx = canvas.getContext('2d');
 
-    const width = canvas.width;
-    const height = canvas.height;
-    const barWidth = width / 3; // 3 bars for 0, 1, and 2
+            const width = canvas.width;
+            const height = canvas.height;
+            const barWidth = width / 3; // 3 bars for 0, 1, and 2
 
-    // Clear the canvas
-    ctx.clearRect(0, 0, width, height);
+            // Clear the canvas
+            ctx.clearRect(0, 0, width, height);
 
-    // Draw histogram bars for counts of 0, 1, and 2
-    for (let i = 0; i <= 2; i++) {
-        let scaledCount = counts[i]; // Scale the count by dividing by 100
+            // Draw histogram bars for counts of 0, 1, and 2
+            for (let i = 0; i <= 2; i++) {
+                let scaledCount = counts[i]; // Scale the count by dividing by 100
 
-        if (scaledCount > 1) {
-            scaledCount /= numberOfProfiles;
+                if (scaledCount > 1) {
+                    scaledCount /= numberOfProfiles;
+                }
+
+                const barHeight = scaledCount * height; // Scale the height based on the adjusted counts
+                const x = i * barWidth; // X position of the bar
+                const y = height - barHeight; // Y position (bottom of the canvas)
+
+                ctx.fillStyle = 'blue'; // Set color for the bars
+                ctx.fillRect(x, y, barWidth - 2, barHeight); // Draw the bar
+
+                ctx.fillStyle = 'black'; // Set color for the text
+                ctx.fillText(scaledCount.toFixed(2), x + (barWidth / 2) - 10, y - 10); // Draw the scaled count above the bar
+            }
+
+            // Add x-axis labels
+            ctx.fillStyle = 'black';
+            ctx.fillText('0', barWidth / 2 - 10, height - 5); // Label for 0
+            ctx.fillText('1', barWidth * 1.5 - 10, height - 5); // Label for 1
+            ctx.fillText('2', barWidth * 2.5 - 10, height - 5); // Label for 2
+
+            // Add y-axis label (optional)
+            ctx.save(); // Save the current context
+            ctx.rotate(-Math.PI / 2); // Rotate context to draw y-axis label
+            ctx.fillText('Count', -height / 2, 20); // Position of the y-axis label
+            ctx.restore(); // Restore the context to original state
         }
-
-        const barHeight = scaledCount * height; // Scale the height based on the adjusted counts
-        const x = i * barWidth; // X position of the bar
-        const y = height - barHeight; // Y position (bottom of the canvas)
-
-        ctx.fillStyle = 'blue'; // Set color for the bars
-        ctx.fillRect(x, y, barWidth - 2, barHeight); // Draw the bar
-
-        ctx.fillStyle = 'black'; // Set color for the text
-        ctx.fillText(scaledCount.toFixed(2), x + (barWidth / 2) - 10, y - 10); // Draw the scaled count above the bar
-    }
-
-    // Add x-axis labels
-    ctx.fillStyle = 'black';
-    ctx.fillText('0', barWidth / 2 - 10, height - 5); // Label for 0
-    ctx.fillText('1', barWidth * 1.5 - 10, height - 5); // Label for 1
-    ctx.fillText('2', barWidth * 2.5 - 10, height - 5); // Label for 2
-
-    // Add y-axis label (optional)
-    ctx.save(); // Save the current context
-    ctx.rotate(-Math.PI / 2); // Rotate context to draw y-axis label
-    ctx.fillText('Count', -height / 2, 20); // Position of the y-axis label
-    ctx.restore(); // Restore the context to original state
+    );
 }
 
 function displaySNP(snp) {
     document.getElementById('snpDisplay').textContent = `SNP: ${snp}`;
 }
 
+function createTable(data, tableId = 'generatedTable') {
+    // Find or create the table container element
+    let tableContainer = document.getElementById(tableId);
+    if (!tableContainer) {
+        tableContainer = document.createElement('div');
+        tableContainer.id = tableId;
+        document.body.appendChild(tableContainer);
+    }
+
+    // Clear any existing table content
+    tableContainer.innerHTML = '';
+
+    // Create the table element
+    const table = document.createElement('table');
+    table.style.borderCollapse = 'collapse';
+    table.style.width = '100%';
+
+    // Create the table header
+    const headers = Object.keys(data[0]); // Assumes all objects have the same keys
+    const headerRow = document.createElement('tr');
+    headers.forEach(headerText => {
+        const th = document.createElement('th');
+        th.textContent = headerText;
+        th.style.border = '1px solid black';
+        th.style.padding = '8px';
+        th.style.backgroundColor = '#f2f2f2';
+        th.style.textAlign = 'center';
+        headerRow.appendChild(th);
+    });
+    table.appendChild(headerRow);
+
+    // Add rows
+    data.forEach(rowData => {
+        const row = document.createElement('tr');
+        headers.forEach(header => {
+            const td = document.createElement('td');
+            td.textContent = rowData[header];
+            td.style.border = '1px solid black';
+            td.style.padding = '8px';
+            td.style.textAlign = 'center';
+            row.appendChild(td);
+        });
+        table.appendChild(row);
+    });
+
+    // Append the table to the container
+    tableContainer.appendChild(table);
+}
+
 // Global variables
 let pako;
 let localforage;
-const numberOfProfiles = 100;
+const numberOfProfiles = 1000000;
 
 async function processPgsData(pgsId, build) {
     try {
         const textFile = await loadScore(pgsId, build);
         const parsedFile = parseFile(textFile);
         const alleleDosage = await processSnpData(parsedFile);
-        const generatedProfiles = processProfiles(alleleDosage, numberOfProfiles);
+        const generatedProfiles = await processProfiles(alleleDosage, numberOfProfiles);
 
         const randomKey = Object.keys(alleleDosage)[Math.floor(Math.random() * Object.keys(alleleDosage).length)];
-        const occurrence = countOccurrences(randomKey, generatedProfiles);
+        //const occurrence = countOccurrences(randomKey, generatedProfiles);
 
-        renderHistogram(occurrence, 'generatedHistogram', numberOfProfiles);
-        renderHistogram(alleleDosage[randomKey], 'expectedHistogram', numberOfProfiles);
+        //renderHistogram(occurrence, 'generatedHistogram', numberOfProfiles);
+        //renderHistogram(alleleDosage[randomKey], 'expectedHistogram', numberOfProfiles);
         displaySNP(randomKey);
+        //createTable(generatedProfiles);
     } catch (error) {
         console.error('An error occurred:', error);
     }
@@ -222,6 +286,10 @@ async function processPgsData(pgsId, build) {
 document.getElementById('retrieveButton').addEventListener('click', async () => {
     const pgsIdInput = document.getElementById('pgsId').value.trim();
     const build = document.querySelector('input[name="build"]:checked').value;
-    if (/^PGS\d{6}$/.test(pgsIdInput)) await processPgsData(pgsIdInput, build);
-    else alert('Please enter a valid PGS ID');
+    if (pgsIdInput.match(/^[0-9]{1,6}$/)) {
+        await processPgsData(pgsIdInput, build);
+    }
+    else {
+        alert('Please enter a valid PGS ID (1 to 6 digits).');
+    }
 });
