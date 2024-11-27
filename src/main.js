@@ -52,6 +52,47 @@ function parseFile(file) {
     return { headers: data[0], values: data.slice(1) };
 }
 
+async function parseCsv(filePath, lineSeparator = '\n', nLines) {
+    let response = await fetch(filePath);
+
+    if (!response.ok) {
+        throw Error(`File Path: ${filePath} does not exist`);
+    }
+
+    let data = (await response.text()).split(lineSeparator);
+    let header = data[0].replace('"', '').split(',').map(header => header.replace(/"/g, '').trim());
+
+    if (nLines !== undefined) {
+        data = data.slice(1, nLines + 1);
+    }
+    else {
+        data = data.slice(1);
+    }
+    data = data.map((d) => {
+        if (d.trim() === '') return null;
+        let elements = d.split(',');
+        return header.reduce((obj, k, i) => ({ ...obj, [k]: parseFloat(elements[i]) }), {});
+    });
+
+    return data.filter((row) => row !== null);
+}
+
+function cdf(incidenceRates, t, value) {
+    let a = 0;
+    incidenceRates.forEach((rate) => a += rate.age);
+
+    const cumulativeHazard = incidenceRates
+        .filter((x) => x.age <= t)
+        .map((x) => parseFloat(x[value]))
+        .reduce((acc, curr) => {
+            return acc + curr;
+        }, 0);
+
+    const cumulativeIncidence = 1 - Math.exp(-cumulativeHazard);
+
+    return cumulativeIncidence;
+}
+
 async function asyncPool(poolLimit, array, iteratorFn) {
     const ret = [];
     const executing = [];
@@ -425,7 +466,8 @@ async function processProfiles(snpsInfo, numProfiles) {
             age: ages[i],
             prs: 0,
             allelesDosage: new Uint8Array(snpsInfo.length), // Array to store alleles
-            control: 0
+            case: 0,
+            onsetAge: 0
         };
 
         snpsInfo.forEach((snp, snpIndex) => {
@@ -434,7 +476,7 @@ async function processProfiles(snpsInfo, numProfiles) {
             profile.allelesDosage[snpIndex] = alleleDosage;
             prs += weight * alleleDosage;
         });
-        profile.prs = prs;
+        profile.prs = Math.exp(prs);
         expLinearPredictors.push(prs);
         profiles.push(profile); // Add the completed profile to the profiles array
     }
@@ -442,46 +484,46 @@ async function processProfiles(snpsInfo, numProfiles) {
     return [rsIds, expLinearPredictors, profiles];
 }
 
-async function estimateWeibullParameters(expLinearPredictors) {
+async function estimateWeibullParameters(expLinearPredictors, incidenceRate) {
     await pyodide.loadPackage('scipy');
     await pyodide.loadPackage('numpy');
-    //expLinearPredictors = [0.4151979020538666, 1.8268624733741343, 0.4832119025036849, 0.6196502952454827, 0.5651862252105405, 0.514427832909567, 0.23692775868212182, 0.31975506440789486, 0.6002554286139826, 0.45443517718131154];
 
     const jsonExpLinearPredictors = JSON.stringify(expLinearPredictors);
+
     pyodide.globals.set('jsonExpLinearPredictors', jsonExpLinearPredictors);
-    console.log(jsonExpLinearPredictors);
+    pyodide.globals.set('target_p50', cdf(incidenceRate, 50, 'rate'));
+    pyodide.globals.set('target_p70', cdf(incidenceRate, 70, 'rate'));
+
     const temp = pyodide.runPython(`
         import json
         import numpy as np
         from scipy.optimize import minimize
         
-        rng = np.random.default_rng(seed=42)
-        
         exp_linear_predictors = np.array(json.loads(jsonExpLinearPredictors)).reshape(-1, 1)
         del jsonExpLinearPredictors
         iter = 0
         n = exp_linear_predictors.shape[0]
+        ages = np.random.uniform(1, 100, size=n).reshape(-1, 1)
         
         def f(k, b): 
             global iter
             iter += 1
             print(iter)
-            time_of_onset = np.power(- np.log(np.random.uniform(0, 1, n)) / (b * exp_linear_predictors), 1 / k)
+            time_of_onset = np.power(ages - np.log(np.random.uniform(0, 1, n)) / (b * exp_linear_predictors), 1 / k)
             p50 = np.sum(time_of_onset < 50) / n
             p70 = np.sum(time_of_onset < 70) / n
-
+            print(f"k: {k} b: {b} p50: {p50}, p70: {p70} time of onset: {time_of_onset[:1]}")
+            
             return p50, p70
-        
         
         def objective_function(params):
             k, b = params
             p50, p70 = f(k, np.exp(b))
-            target_p50, target_p70 = 0.05, 0.12
             error = (p50 - target_p50)**2 + (p70 - target_p70)**2
-            
+            print("ERROR " , error)
             return error
         
-        initial_guess = [2.15, np.log(0.9E-6)]
+        initial_guess = [2.15, np.log(0.1e-6)]
         [optimized_k, optimized_b] = [None, None]
         bounds = [(1e-8, None), (None, None)]
         options = {'maxiter': 5000, 'fatol': 4e-6}
@@ -494,21 +536,23 @@ async function estimateWeibullParameters(expLinearPredictors) {
             )
         
         if result.success:
-            optimized_k, optimized_b = result.x
+            optimized_k, optimized_b = result.x[0], result.x[1]
             print(f"Optimized k: {optimized_k}, Optimized b: {np.exp(optimized_b)}, f(k, b): {f(optimized_k, np.exp(optimized_b))}")
-            print(result)
         else:
             print("Optimization failed.")
         
         optimized_k, optimized_b
         `);
 
+    if (temp.toJSON()[0] === undefined) {
+        alert('Optimization failed. Please try again');
+        //window.location.reload();
+    }
+
     return temp.toJSON();
 }
 
 function calculateTimeDiseaseOnset(age, prs, k, b) {
-    k = 2.39;
-    b = 5;
     const denominator = prs * b;
     const numerator = Math.log(Math.random());
     const innerTerm = age - (denominator / numerator);
@@ -516,9 +560,11 @@ function calculateTimeDiseaseOnset(age, prs, k, b) {
     return Math.pow(innerTerm, 1 / k);
 }
 
-function distributeCaseControl(profiles, k, b) {
+function distributeCaseControl(profiles, k, b, followUpPeriod) {
     profiles.forEach(profile => {
-        profile.case = calculateTimeDiseaseOnset(profile.age, profile.prs, k, b);
+        const onsetAge = calculateTimeDiseaseOnset(profile.age, profile.prs, k, b);
+        profile.case = (onsetAge < followUpPeriod) ? 1 : 0;
+        profile.onsetAge = Math.round(onsetAge);
     });
 }
 
@@ -640,23 +686,25 @@ function createTable(data, tableId = 'generatedTable') {
 async function processPgsData(pgsId, build) {
     try {
         const genomeBuild = 'GRCh38';
+        const incidenceRate = await parseCsv(incidenceRateFile);
         const textFile = await loadScore(pgsId, build);
         const parsedFile = parseFile(textFile);
         const snpsInfo = await processSnpData(parsedFile);
         const [rsIds, expLinearPredictors, generatedProfiles] = await processProfiles(snpsInfo, numberOfProfiles);
-        const slicedLinearPredictors = expLinearPredictors.slice(0, 20); // G
-        const [optimized_k, optimized_b] = await estimateWeibullParameters(slicedLinearPredictors);
-        const data = distributeCaseControl(generatedProfiles, optimized_k, optimized_b);
-        console.log('RESULT ');
+        const slicedLinearPredictors = expLinearPredictors.slice(0, 100); // G
+        [optimized_k, optimized_b] = await estimateWeibullParameters(slicedLinearPredictors, incidenceRate);
 
-        const maxSize = 1000;
+        distributeCaseControl(generatedProfiles, optimized_k, optimized_b, followUpPeriod);
+        console.log(cdf(incidenceRate, 50, 'rate'));
+        console.log(cdf(generatedProfiles, 50, 'case'));
+
         const randomIndex = Object.keys(rsIds)[Math.floor(Math.random() * Object.keys(rsIds).length)];
-        const slicedProfiles = generatedProfiles.slice(0, maxSize); // G
+        const slicedProfiles = generatedProfiles.slice(0, profilesSliceSize); // G
         const occurrence = countOccurrences(randomIndex, slicedProfiles);
         const randomSnp = snpsInfo.filter(snp => snp.rsID === rsIds[randomIndex]);
 
-        renderHistogram(occurrence, 'generatedHistogram', maxSize);
-        renderHistogram(randomSnp[0].alleleDosageFrequency, 'expectedHistogram', maxSize);
+        renderHistogram(occurrence, 'generatedHistogram', profilesSliceSize);
+        renderHistogram(randomSnp[0].alleleDosageFrequency, 'expectedHistogram', profilesSliceSize);
         displaySNP(rsIds[randomIndex]);
         createTable(slicedProfiles);
     } catch (error) {
@@ -672,12 +720,14 @@ async function processPgsData(pgsId, build) {
 let pako;
 let localforage;
 let pyodide;
-const numberOfProfiles = 1000;
-const followUpPeriod = 50;
-let k = 0;
-let b = 0;
-const minAge = 0;
-const maxAge = 100;
+let incidenceRateFile = 'data/age_specific_breast_cancer_incidence_rates.csv';
+let numberOfProfiles = 1000;
+let followUpPeriod = 50;
+let optimized_k = 0;
+let optimized_b = 0;
+let profilesSliceSize = 100;
+let minAge = 0;
+let maxAge = 100;
 
 import { API_KEY } from '../apikey.js';
 /* TODO: Currently we only get rsId from eutils;
