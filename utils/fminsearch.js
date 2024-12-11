@@ -1,5 +1,5 @@
-export function fminsearch(fun, Parm0, x, y, Opt) {// fun = function(x,Parm)
-    if (!Opt.step) {// initial step is 1/100 of initial value (remember not to use zero in Parm0)
+export function fminsearch(fun, Parm0, x, y, Opt) {
+    if (!Opt.step) { // initial step is 1/100 of initial value (remember not to use zero in Parm0)
         Opt.step = Parm0.map(function(p) {
             return p / 10;
         });
@@ -29,21 +29,33 @@ export function fminsearch(fun, Parm0, x, y, Opt) {// fun = function(x,Parm)
         return Opt.objFun(fun(P), y);
     };
 
+    const targetError = Opt.targetError || 0.01; // Set target error (default 0.01 if not provided)
+
     for (var i = 0; i < Opt.maxIter; i++) {
+        //P1 = cloneVector(P0);
         for (var j = 0; j < n; j++) { // take a step for each parameter
             P1 = cloneVector(P0);
             P1[j] += step[j];
             if (funParm(P1) < funParm(P0)) { // if parm value going in the righ direction
-                step[j] = 1.2 * step[j]; // then go a little faster
+                step[j] = 1.2 * step[j]; // go a little faster
                 P0 = cloneVector(P1);
             }
-            else {
-                step[j] = -(0.5 * step[j]); // otherwise reverse and go slower
+            else { // if not
+                step[j] = -(0.5 * step[j]); // reverse and go slower
             }
         }
+
+        // Check if error is below target
+        const currentError = funParm(P0);
+        console.log('Current Error: ', currentError);
+        // if (currentError <= targetError) {
+        //     console.log(`Target error of ${targetError} reached at iteration ${i + 1}.`);
+        //     break; // Stop if the error is below the threshold
+        // }
+
         if (Opt.display) {
-            if (i > (Opt.maxIter - 100)) {
-                console.log('Iteration: ', i + 1, 'Error: ', funParm(P0), 'k, b: ', P0);
+            if (i > (Opt.maxIter - Opt.maxIter * 1)) {
+                console.log('Iteration: ', i + 1, 'Error: ', currentError, 'k, b: ', P0);
             }
         }
     }
