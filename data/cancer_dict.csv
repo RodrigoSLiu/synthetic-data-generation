@@ -1,0 +1,172 @@
+cancer_dict
+cancer_code;cancer_label;icd10;histo_label
+1;All cancers excluding non-melanoma skin;C00-96/C44;
+2;Lip;C00;
+3;Tongue;C01-02;
+4;Mouth;C03-06;
+5;Salivary glands;C07-08;
+6;Tonsil;C09;
+7;Other oropharynx;C10;
+8;Nasopharynx;C11;
+9;Hypopharynx;C12-13;
+10;Pharynx unspecified;C14;
+11;Oesophagus;C15;
+12;Oesophagus;C15;Squamous cell carcinoma
+13;Oesophagus;C15;Adenocarcinoma
+14;Oesophagus;C15;Other specified carcinomas
+15;Oesophagus;C15;Unspecified carcinoma
+16;Oesophagus;C15;Sarcoma
+17;Oesophagus;C15;Other specified morphology
+18;Oesophagus;C15;Unspecified morphology
+19;Stomach;C16;
+20;Small intestine;C17;
+21;Colon;C18;
+22;Rectum;C19-20;
+23;Anus;C21;
+24;Anus;C21;Squamous cell carcinoma
+25;Anus;C21;Adenocarcinoma
+26;Anus;C21;Other specified carcinoma
+27;Anus;C21;Unspecified carcinoma
+28;Anus;C21;Melanoma
+29;Anus;C21;Other morphology
+30;Anus;C21;Unspecified morphology
+31;Liver;C22;
+32;Liver;C22;Hepatocellular carcinoma
+33;Liver;C22;Cholangiocarcinoma
+34;Liver;C22;Other specified carcinoma
+35;Liver;C22;Unspecified carcinoma
+36;Liver;C22;Hepatoblastoma
+37;Liver;C22;Hemangiosarcoma
+38;Liver;C22;Other specified sarcoma
+39;Liver;C22;Other specified morphology
+40;Liver;C22;Unspecified morphology
+41;Gallbladder etc.;C23-24;
+42;Pancreas;C25;
+43;Nose, sinuses etc.;C30-31;
+44;Larynx;C32;
+45;Trachea;C33;
+46;Lung;C34;
+47;Lung;C34;Squamous cell carcinoma
+48;Lung;C34;Adenocarcinoma
+49;Lung;C34;Small cell carcinoma
+50;Lung;C34;Large cell carcinoma
+51;Lung;C34;Other and unspecified carcinoma
+52;Lung;C34;Sarcoma
+53;Lung;C34;Other specified morphology
+54;Lung;C34;Unspecified morphology
+55;Bone;C40-41;
+56;Bone;C40-41;Osteosarcoma
+57;Bone;C40-41;Chondrosarcoma
+58;Bone;C40-41;Ewing sarcoma
+59;Bone;C40-41;Other specified sarcomas
+60;Bone;C40-41;Unspecified sarcoma
+61;Bone;C40-41;Other specified morphology
+62;Bone;C40-41;Unspecified morphology
+63;Melanoma of skin;C43;
+64;Mesothelioma;C45;
+65;Kaposi sarcoma;C46;
+66;Connective and soft tissue;C47+C49;
+67;Breast;C50;
+68;Vulva;C51;
+69;Vagina;C52;
+70;Cervix uteri;C53;
+71;Cervix uteri;C53;Squamous cell carcinoma
+72;Cervix uteri;C53;Adenocarcinoma
+73;Cervix uteri;C53;Other specified carcinoma
+74;Cervix uteri;C53;Unspecified carcinoma
+75;Cervix uteri;C53;Sarcoma
+76;Cervix uteri;C53;Other specified morphology
+77;Cervix uteri;C53;Unspecified morphology
+78;Corpus uteri;C54;
+79;Corpus uteri;C54;Adenocarcinoma
+80;Corpus uteri;C54;Other specified carcinoma
+81;Corpus uteri;C54;Unspecified carcinoma
+82;Corpus uteri;C54;Sarcoma
+83;Corpus uteri;C54;Other specified morphology
+84;Corpus uteri;C54;Unspecified morphology
+85;Uterus unspecified;C55;
+86;Ovary;C56;
+87;Ovary;C56;Serous carcinoma
+88;Ovary;C56;Mucinous carcinoma
+89;Ovary;C56;Endometrioid carcinoma
+90;Ovary;C56;Clear cell carcinoma
+91;Ovary;C56;Adenocarcinoma
+92;Ovary;C56;Other specified carcinoma
+93;Ovary;C56;Unspecified carcinoma
+94;Ovary;C56;Sex cord-stromal tumour
+95;Ovary;C56;Germ cell tumour
+96;Ovary;C56;Other specified morphology
+97;Ovary;C56;Unspecified morphology
+98;Other female genital organs;C57;
+99;Placenta;C58;
+100;Penis;C60;
+101;Prostate;C61;
+102;Testis;C62;
+103;Testis;C62;Seminoma
+104;Testis;C62;Spermatocytic seminoma
+105;Testis;C62;Non-seminomatous germ cell tumours
+106;Testis;C62;Other specified morphology
+107;Testis;C62;Unspecified morphology
+108;Other male genital organs;C63;
+109;Kidney;C64;
+110;Renal pelvis;C65;
+111;Ureter;C66;
+112;Bladder;C67;
+113;Bladder;C67;Squamous cell carcinoma
+114;Bladder;C67;Transitional cell carcinoma
+115;Bladder;C67;Adenocarcinoma
+116;Bladder;C67;Other specified carcinoma
+117;Bladder;C67;Unspecified carcinoma
+118;Bladder;C67;Sarcoma
+119;Bladder;C67;Other specified morphology
+120;Bladder;C67;Unspecified morphology
+121;Other urinary organs;C68;
+122;Eye;C69;
+123;Eye;C69;Retinoblastoma
+124;Eye;C69;Melanoma
+125;Eye;C69;Squamous cell carcinoma
+126;Eye;C69;Other specified carcinoma
+127;Eye;C69;Unspecified carcinoma
+128;Eye;C69;Sarcoma
+129;Eye;C69;Other specified morphology
+130;Eye;C69;Unspecified morphology
+131;Meninges;C70;
+132;Brain, central nervous system;C71-72;
+133;Brain, central nervous system;C71-72;Astrocytic tumours
+134;Brain, central nervous system;C71-72;Oligodendroglial tumours and mixed gliomas
+135;Brain, central nervous system;C71-72;Ependymal tumours
+136;Brain, central nervous system;C71-72;Gliomas of uncertain origin
+137;Brain, central nervous system;C71-72;Medulloblastoma
+138;Brain, central nervous system;C71-72;Other embryonal tumours
+139;Brain, central nervous system;C71-72;Other neuroepithelial tumours
+140;Brain, central nervous system;C71-72;Other specified morphology
+141;Brain, central nervous system;C71-72;Unspecified morphology
+142;Thyroid;C73;
+143;Thyroid;C73;Follicular carcinoma
+144;Thyroid;C73;Papillary carcinoma
+145;Thyroid;C73;Medullary carcinoma
+146;Thyroid;C73;Anaplastic carcinoma
+147;Thyroid;C73;Other specified carcinoma
+148;Thyroid;C73;Unspecified carcinoma
+149;Thyroid;C73;Sarcoma
+150;Thyroid;C73;Other specified morphology
+151;Thyroid;C73;Unspecified morphology
+152;Adrenal gland;C74;
+153;Other endocrine;C75;
+154;Hodgkin lymphoma;C81;
+155;Hodgkin lymphoma;C81;Lymphocytic predominance
+156;Hodgkin lymphoma;C81;Nodular sclerosis
+157;Hodgkin lymphoma;C81;Mixed cellularity
+158;Hodgkin lymphoma;C81;Lymphocytic depletion
+159;Hodgkin lymphoma;C81;Lymphocyte-rich
+160;Non-Hodgkin lymphoma;C82-86,C96;
+161;Burkitt lymphoma;C83.7;
+162;Immunoproliferative diseases;C88;
+163;Multiple myeloma;C90;
+164;Lymphoid leukaemia;C91;
+165;Lymphoid leukaemia;C91;Acute
+166;Lymphoid leukaemia;C91;Chronic
+167;Myeloid leukaemia;C92-94;
+168;Myeloid leukaemia;C92-94;Acute
+169;Myeloid leukaemia;C92-94;Chronic
+170;Leukaemia, cell unspecified;C95;

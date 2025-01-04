@@ -1,0 +1,37 @@
+import {
+    processProfiles,
+    processSnpData,
+    getRsIds,
+    getChromosomeAndPosition,
+    generateAlleleDosage,
+    distributeCaseControl,
+    estimateWeibullParameters,
+    getSnpsInfo,
+    renderHistogram,
+    displaySNP,
+    createTable,
+    renderSNPHistograms,
+    sleep,
+    countOccurrences,
+    parseFile,
+    parseCsv
+} from './data-generator';
+
+export {
+    processProfiles,
+    processSnpData,
+    getRsIds,
+    getChromosomeAndPosition,
+    generateAlleleDosage,
+    distributeCaseControl,
+    estimateWeibullParameters,
+    getSnpsInfo,
+    renderHistogram,
+    displaySNP,
+    createTable,
+    renderSNPHistograms,
+    sleep,
+    countOccurrences,
+    parseFile,
+    parseCsv
+};

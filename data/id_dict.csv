@@ -1,0 +1,126 @@
+id_dict
+CI5_continent;id_code;id_label;ethnic_code;country_code;registry_code
+1;80000299;Uganda, Kyadondo County;99;800;800002
+2;3200799;Argentina, Mendoza;99;32;32007
+2;15200199;Chile, Valdivia;99;152;152001
+2;17000199;Colombia, Cali;99;170;170001
+2;17000299;Colombia, Bucaramanga;99;170;170002
+2;17000399;Colombia, Manizales;99;170;170003
+2;17000499;Colombia, Pasto;99;170;170004
+2;18800099;Costa Rica;99;188;188000
+2;21800199;Ecuador, Quito;99;218;218001
+2;25009199;France, Martinique;99;250;250091
+2;63000099;Puerto Rico;99;630;630000
+3;12400099;Canada (Excl Nova Scotia, Northwest Territories, Nunavut, Quebec and Yukon);99;124;124000
+3;84000310;USA, California, Los Angeles County: White;10;840;840003
+3;84000320;USA, California, Los Angeles County: Chinese;20;840;840003
+3;84000322;USA, California, Los Angeles County: Korean;22;840;840003
+3;84000323;USA, California, Los Angeles County: Filipino;23;840;840003
+3;84000330;USA, California, Los Angeles County: Black;30;840;840003
+3;84000350;USA, California, Los Angeles County: Hispanic White;50;840;840003
+3;84000360;USA, California, Los Angeles County: Non-Hispanic White;60;840;840003
+3;84000399;USA, California, Los Angeles (SEER);99;840;840003
+3;84002010;USA, SEER (9 registries): White;10;840;840020
+3;84002030;USA, SEER (9 registries): Black;30;840;840020
+3;84002099;USA, SEER (9 registries);99;840;840020
+3;84008010;USA, NPCR: White;10;840;840080
+3;84008029;USA, NPCR: Asian and Pacific Islander;29;840;840080
+3;84008030;USA, NPCR: Black;30;840;840080
+3;84008099;USA, NPCR (45 States and Washington DC);99;840;840080
+4;4800046;Bahrain: Bahraini;46;48;48000
+4;15600199;China, Beijing City;99;156;156001
+4;15600299;China, Qidong City;99;156;156002
+4;15600399;China, Shanghai City;99;156;156003
+4;15600799;China, Jiashan County;99;156;156007
+4;15600999;China, Wuhan City;99;156;156009
+4;15601499;China, Zhongshan City;99;156;156014
+4;15601599;China, Nangang District, Harbin City;99;156;156015
+4;15601899;China, Yanting County;99;156;156018
+4;35600399;India, Mumbai;99;356;356003
+4;35600499;India, Chennai;99;356;356004
+4;35600799;India, Barshi;99;356;356007
+4;35601199;India, Dindigul Ambilikkai;99;356;356011
+4;37600090;Israel: All Jews;90;376;376000
+4;37600099;Israel;99;376;376000
+4;39200299;Japan, Miyagi Prefecture;99;392;392002
+4;39200499;Japan, Osaka;99;392;392004
+4;41000099;Republic of Korea;99;410;410000
+4;41000299;Republic of Korea, Busan;99;410;410002
+4;41000399;Republic of Korea, Seoul;99;410;410003
+4;41000499;Republic of Korea, Daegu;99;410;410004
+4;41000599;Republic of Korea, Daejeon;99;410;410005
+4;41000899;Republic of Korea, Ulsan;99;410;410008
+4;41000999;Republic of Korea, Jejudo;99;410;410009
+4;41001099;Republic of Korea, Gwangju;99;410;410010
+4;41001199;Republic of Korea, Incheon;99;410;410011
+4;41400025;Kuwait: Kuwaiti;25;414;414000
+4;60800299;Philippines, Manila;99;608;608002
+4;63400068;Qatar: Qatari;68;634;634000
+4;76400199;Thailand, Chiang Mai;99;764;764001
+4;76400299;Thailand, Khon Kaen;99;764;764002
+4;76400499;Thailand, Songkhla;99;764;764004
+4;76400599;Thailand, Lampang;99;764;764005
+4;79200199;Türkiye, Izmir;99;792;792001
+4;79200299;Türkiye, Antalya;99;792;792002
+5;4000099;Austria;99;40;40000
+5;4000799;Austria, Tyrol;99;40;40007
+5;4000899;Austria, Vorarlberg;99;40;40008
+5;11200099;Belarus;99;112;112000
+5;19100099;Croatia;99;191;191000
+5;19600099;Cyprus;99;196;196000
+5;20300099;Czech Republic;99;203;203000
+5;20800099;Denmark;99;208;208000
+5;23300099;Estonia;99;233;233000
+5;25000199;France, Bas-Rhin;99;250;250001
+5;25000299;France, Calvados;99;250;250002
+5;25000399;France, Doubs;99;250;250003
+5;25000499;France, Haut-Rhin;99;250;250004
+5;25000599;France, Isère;99;250;250005
+5;25000699;France, Somme;99;250;250006
+5;25000899;France, Hérault;99;250;250008
+5;25001499;France, Loire-Atlantique;99;250;250014
+5;25001699;France, Manche;99;250;250016
+5;25001799;France, Vendée;99;250;250017
+5;27600299;Germany, Hamburg;99;276;276002
+5;27601299;Germany, Bremen;99;276;276012
+5;27601699;Germany, Schleswig-Holstein;99;276;276016
+5;27603099;Germany, Saarland;99;276;276030
+5;35200099;Iceland;99;352;352000
+5;37200099;Ireland;99;372;372000
+5;38001499;Italy, Umbria, Perugia;99;380;380014
+5;38001999;Italy, Trento;99;380;380019
+5;38002999;Italy, Syracuse;99;380;380029
+5;38003399;Italy, Palermo;99;380;380033
+5;38003499;Italy, South Tyrol;99;380;380034
+5;42800099;Latvia;99;428;428000
+5;44000099;Lithuania;99;440;440000
+5;47000099;Malta;99;470;470000
+5;52800099;The Netherlands;99;528;528000
+5;57800099;Norway;99;578;578000
+5;61600799;Poland, Kielce;99;616;616007
+5;70500099;Slovenia;99;705;705000
+5;72400199;Spain, Tarragona;99;724;724001
+5;72400299;Spain, Granada;99;724;724002
+5;72400399;Spain, Murcia;99;724;724003
+5;72400499;Spain, Navarra;99;724;724004
+5;72400699;Spain, Basque Country;99;724;724006
+5;72401099;Spain, Girona;99;724;724010
+5;72401199;Spain, Canary Islands;99;724;724011
+5;72401499;Spain, La Rioja;99;724;724014
+5;75600299;Switzerland, Geneva;99;756;756002
+5;75600599;Switzerland, Vaud;99;756;756005
+5;75600899;Switzerland, Valais;99;756;756008
+5;75601099;Switzerland, Ticino;99;756;756010
+5;75601199;Switzerland, Graubünden and Glarus;99;756;756011
+5;82600199;UK, England;99;826;826001
+5;82602099;UK, Scotland;99;826;826020
+5;82603099;UK, Northern Ireland;99;826;826030
+5;82604099;UK, Wales;99;826;826040
+6;3600299;Australia, New South Wales & Australian Capital Territory;99;36;36002
+6;3600399;Australia, Queensland;99;36;36003
+6;3600499;Australia, South;99;36;36004
+6;3600599;Australia, Tasmania;99;36;36005
+6;3600699;Australia, Victoria;99;36;36006
+6;3600799;Australia, Western;99;36;36007
+6;3600899;Australia, Northern Territory;99;36;36008
+6;55400099;New Zealand;99;554;554000
