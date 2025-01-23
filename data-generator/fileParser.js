@@ -4,25 +4,42 @@ export function parseFile(file) {
     return { headers: data[0], values: data.slice(1) };
 }
 
-export async function parseCsv(filePath, lineSeparator = '\n', nLines) {
+export async function parseCsv(filePath, options) {
+    if (!options) options = {};
+    if (!options.lineSeparator) options.lineSeparator = ['\n', '\r\n', '\r'];
+    if (!options.delimiter) options.delimiter = ',';
+    if (!options.skip) options.skip = ['data'];
+    if (!options.nLines) options.nLines = undefined;
+
     let response = await fetch(filePath);
+    let data;
 
     if (!response.ok) {
         throw Error(`File Path: ${filePath} does not exist`);
     }
+    const text = await response.text();
 
-    let data = (await response.text()).split(lineSeparator);
-    let header = data[0].replace('"', '').split(',').map(header => header.replace(/"/g, '').trim());
+    for (const separator of options.lineSeparator) {
+        data = text.split(separator);
 
-    if (nLines !== undefined) {
-        data = data.slice(1, nLines + 1);
+        if (data.length > 1) {
+            // Found a valid line separator, break out of the loop
+            break;
+        }
+    }
+
+    if (options.nLines !== undefined) {
+        data = data.slice(1, options.nLines + 1);
     }
     else {
         data = data.slice(1);
     }
+    const header = data[0].split(options.delimiter);
+
     data = data.map((d) => {
         if (d.trim() === '') return null;
-        let elements = d.split(',');
+        let elements = d.split(options.delimiter);
+
         return header.reduce((obj, k, i) => ({ ...obj, [k]: parseFloat(elements[i]) }), {});
     });
 

@@ -3,18 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Histogram Example</title>
+    <title>PGS Data Visualization</title>
     <style>
         canvas {
             border: 1px solid black;
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 <h1>Retrieve PGS Data</h1>
 <label for="pgsId">Enter PGS ID:</label>
 <input type="text" id="pgsId" placeholder="PGS ID" required>
-
+<br><br>
 <div>
     <label>Select Build:</label>
     <input type="radio" id="build37" name="build" value="37">
@@ -22,22 +23,36 @@
     <input type="radio" id="build38" name="build" value="38" checked>
     <label for="build38">38</label>
 </div>
-
+<br><br>
 <div>
+    <label for="numberOfProfiles">Number of profiles:</label>
+    <input type="number" id="numberOfProfiles" placeholder="Number of profiles" required>
+    <br><br>
     <label for="minAge">Minimum Age:</label>
     <input type="number" id="minAge" placeholder="Minimum Age" required>
     <br><br>
     <label for="maxAge">Maximum Age:</label>
     <input type="number" id="maxAge" placeholder="Maximum Age" required>
+    <br><br>
+    <label for="followUp">Follow-up Period:</label>
+    <input type="number" id="followUp" placeholder="Follow-up Period" required>
 </div>
 <br><br>
+
 <button id="retrieveButton">Retrieve</button>
 
-<h2 id="snpDisplay">SNP: </h2> <!-- Placeholder for displaying the SNP variable -->
+<h1>Expected Breast Cancer Incidence Rates</h1>
+<canvas id="expectedIncidenceChart"></canvas>
+
+<h1>Predicted Breast Cancer Incidence Rates</h1>
+<canvas id="predictedIncidenceChart"></canvas>
+
+<h2 id="snpDisplay">SNP: </h2>
 <h1>Generated Profiles Occurrence Visualization</h1>
 <canvas id="generatedHistogram" width="400" height="300"></canvas>
 <h1>Expected Profiles Occurrence Visualization</h1>
 <canvas id="expectedHistogram" width="400" height="300"></canvas>
+
 <script type="module" src="main.js"></script>
 </body>
 </html>

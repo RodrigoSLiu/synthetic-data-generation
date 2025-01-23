@@ -5,7 +5,11 @@ import {
     getChromosomeAndPosition,
     generateAlleleDosage,
     distributeCaseControl,
+
     estimateWeibullParameters,
+    testEstimateWeibullParameters,
+
+
     getSnpsInfo,
     renderHistogram,
     displaySNP,
@@ -14,7 +18,8 @@ import {
     sleep,
     countOccurrences,
     parseFile,
-    parseCsv
+    parseCsv,
+    cdf
 } from './data-generator';
 
 export {
@@ -24,7 +29,11 @@ export {
     getChromosomeAndPosition,
     generateAlleleDosage,
     distributeCaseControl,
+
     estimateWeibullParameters,
+    testEstimateWeibullParameters,
+
+
     getSnpsInfo,
     renderHistogram,
     displaySNP,
@@ -33,5 +42,6 @@ export {
     sleep,
     countOccurrences,
     parseFile,
-    parseCsv
+    parseCsv,
+    cdf
 };

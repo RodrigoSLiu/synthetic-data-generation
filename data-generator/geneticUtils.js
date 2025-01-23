@@ -5,6 +5,8 @@ import { fminsearch } from './fminsearch.js';
 import { loadScore } from './loaders.js';
 import { processSnpData } from './dataProcessingUtils.js';
 
+import { nelderMead } from './nelderMead.js';
+
 
 // export async function getRsIds(snpInfo, apiKey) {
 //     const requestLimit = 100;
@@ -109,7 +111,7 @@ export function distributeCaseControl(profiles, k, b) {
     // Function to calculate the time of disease onset
     const calculateTimeDiseaseOnset = (age, prs, k, b) => {
         const numerator = Math.log(Math.random());
-        const innerTerm = Math.pow(age, k) - (prs * b / numerator);
+        const innerTerm = Math.pow(age, k) - (prs * Math.exp(b) / numerator);
 
         return Math.pow(innerTerm, 1 / k);
     };
@@ -122,13 +124,13 @@ export function distributeCaseControl(profiles, k, b) {
     });
 }
 
-export function estimateWeibullParameters(timePoints, probabilities, studyEntryAge, expLinearPredictors) {
+export function estimateWeibullParameters(timePoints, incidenceRate, studyEntryAge, expLinearPredictors) {
     function f(params, constants = {
         studyEntryAge: studyEntryAge,
         expLinearPredictors: expLinearPredictors,
         timePoints: timePoints
     }) {
-        const [k, b] = params;
+        const [k, log_b] = params;
         const power = (base, exp) =>
             Array.isArray(base)
                 ? base.map((x) => Math.pow(x, exp))
@@ -141,7 +143,7 @@ export function estimateWeibullParameters(timePoints, probabilities, studyEntryA
             power(constants.studyEntryAge, k).map(
                 (age, i) =>
                     age -
-                    Math.log(randomNumbers[i]) / (Math.exp(b) * constants.expLinearPredictors[i])
+                    Math.log(randomNumbers[i]) / (Math.exp(log_b) * constants.expLinearPredictors[i])
             ),
             1 / k
         );
@@ -165,17 +167,71 @@ export function estimateWeibullParameters(timePoints, probabilities, studyEntryA
     };
 
     // Simulated data for fitting
-    let y = probabilities;
-    let initialGuess = [1, Math.exp(0.001)]; // Initial guess for k and b
+    let y = incidenceRate;
+    let initialGuess = [1, 1]; // Initial guess for k and b
     const constants = {
         studyEntryAge: studyEntryAge,
         expLinearPredictors: expLinearPredictors,
         timePoints: timePoints
     };
-    let params = fminsearch(f, initialGuess, y, { objFun: objFun, maxIter: 10 });
+    let params = fminsearch(f, initialGuess, y, { objFun: objFun, maxIter: 10000 });
     console.log('Fitted parameters (k, b):', params.parmf);
 
     return params.parmf;
+}
+
+export function testEstimateWeibullParameters(timePoints, incidenceRate, studyEntryAge, expLinearPredictors) {
+    function f(params, constants = {
+        studyEntryAge: studyEntryAge,
+        expLinearPredictors: expLinearPredictors,
+        timePoints: timePoints
+    }) {
+        const [k, log_b] = params;
+        const power = (base, exp) =>
+            Array.isArray(base)
+                ? base.map((x) => Math.pow(x, exp))
+                : Math.pow(base, exp);
+
+        const n = constants.studyEntryAge.length;
+        const randomNumbers = Array(n).fill(0).map(() => Math.random());
+
+        const timeOfOnset = power(
+            power(constants.studyEntryAge, k).map(
+                (age, i) =>
+                    age -
+                    Math.log(randomNumbers[i]) / (Math.exp(log_b) * constants.expLinearPredictors[i])
+            ),
+            1 / k
+        );
+
+        const probabilities = constants.timePoints.map(
+            (t) => timeOfOnset.filter((time) => time < t).length / n
+        );
+
+        return probabilities;
+    }
+
+    let rmse = function(params) {
+        const pred = f(params);
+        const error = pred.map((predicted, index) => Math.pow(predicted - incidenceRate[index], 2));
+        const average = array => array.reduce((a, b) => a + b, 0) / array.length;
+        return Math.sqrt(average(error));
+    };
+
+    let initialGuess = [1, 1]; // Initial guess for k and b
+    const constants = {
+        studyEntryAge: studyEntryAge,
+        expLinearPredictors: expLinearPredictors,
+        timePoints: timePoints
+    };
+    let params = nelderMead(rmse, initialGuess, {
+        maxIterations: 1000,
+        minErrorDelta: 1e-7,
+        minTolerance: 1e-6
+    });
+    console.log('Fitted parameters (k, b):', params.x);
+
+    return params.x;
 }
 
 export async function getSnpsInfo(pgsId, build) {
