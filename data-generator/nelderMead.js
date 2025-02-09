@@ -34,8 +34,6 @@ export function nelderMead(f, x0, parameters) {
             simplex[N][i] = value[i];
         }
         simplex[N].fx = value.fx;
-
-        console.log('Simplex: ', simplex[0]);
     }
 
     var sortOrder = function(a, b) {
@@ -149,6 +147,8 @@ export function nelderMead(f, x0, parameters) {
         else {
             updateSimplex(reflected);
         }
+
+        console.log('Simplex: ', simplex[0]);
     }
 
     simplex.sort(sortOrder);

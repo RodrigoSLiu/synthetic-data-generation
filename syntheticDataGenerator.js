@@ -5,11 +5,7 @@ import {
     getChromosomeAndPosition,
     generateAlleleDosage,
     distributeCaseControl,
-
     estimateWeibullParameters,
-    testEstimateWeibullParameters,
-
-
     getSnpsInfo,
     renderHistogram,
     displaySNP,
@@ -29,11 +25,7 @@ export {
     getChromosomeAndPosition,
     generateAlleleDosage,
     distributeCaseControl,
-
     estimateWeibullParameters,
-    testEstimateWeibullParameters,
-
-
     getSnpsInfo,
     renderHistogram,
     displaySNP,

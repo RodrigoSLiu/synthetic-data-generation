@@ -12,21 +12,19 @@ export async function parseCsv(filePath, options) {
     if (!options.nLines) options.nLines = undefined;
 
     let response = await fetch(filePath);
-    let data;
-
     if (!response.ok) {
         throw Error(`File Path: ${filePath} does not exist`);
     }
+
     const text = await response.text();
+    let data;
 
     for (const separator of options.lineSeparator) {
         data = text.split(separator);
-
-        if (data.length > 1) {
-            // Found a valid line separator, break out of the loop
-            break;
-        }
+        if (data.length > 1) break;
     }
+
+    const header = data[0].split(options.delimiter).map(h => h.replace(/^"|"$/g, '').trim());
 
     if (options.nLines !== undefined) {
         data = data.slice(1, options.nLines + 1);
@@ -34,13 +32,20 @@ export async function parseCsv(filePath, options) {
     else {
         data = data.slice(1);
     }
-    const header = data[0].split(options.delimiter);
 
     data = data.map((d) => {
         if (d.trim() === '') return null;
-        let elements = d.split(options.delimiter);
+        let elements = d.split(options.delimiter).map(e => e.replace(/^"|"$/g, '').trim());
 
-        return header.reduce((obj, k, i) => ({ ...obj, [k]: parseFloat(elements[i]) }), {});
+        return header.reduce((obj, k, i) => {
+            let value = elements[i];
+
+            // Convert "age" and "rate" to numbers
+            if (k === 'age') value = parseInt(value, 10);
+            if (k === 'rate') value = parseFloat(value);
+
+            return { ...obj, [k]: value };
+        }, {});
     });
 
     return data.filter((row) => row !== null);

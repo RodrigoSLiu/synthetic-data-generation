@@ -40,6 +40,7 @@ export async function processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge
             prs: Math.exp(prs),
             case: false,
             onsetAge: 0,
+            randomNumber: Math.random(),
             allelesDosage: Uint8Array.from(allelesDosage)
         });
 

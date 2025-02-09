@@ -4,9 +4,6 @@ import {
     getSnpsInfo,
     processProfiles,
     estimateWeibullParameters,
-    testEstimateWeibullParameters,
-
-
     distributeCaseControl,
     createTable,
     displaySNP,
@@ -40,24 +37,11 @@ async function generateCaseControlLabels(profiles) {
     const slicedLinearPredictors = profiles.slice(0, sliceMaxSize).map((profile) => profile.prs);
 
     // Calculate Weibull parameters and distribute case/control data
-    const timePoints = [30, 50, 70];
+    const timePoints = [10, 30, 50, 70];
     const incidenceRate = await parseCsv(incidenceRateFile, { delimiter: ',' });
     const probabilities = timePoints.map(value => cdf(incidenceRate, value, 'rate'));
-    //const [optimized_k, optimized_b] = estimateWeibullParameters(timePoints, probabilities, slicedEntryAges, slicedLinearPredictors);
-    //distributeCaseControl(profiles, optimized_k, optimized_b);
-    distributeCaseControl(profiles, 1.01, 2.5);
-    //const optimized = testEstimateWeibullParameters(timePoints, probabilities, slicedEntryAges, slicedLinearPredictors);
-    //distributeCaseControl(profiles, optimized[0], optimized[1]);
-
-    //
-    // // Calculate rates
-    // const sliceMaxSize = numberOfProfiles * 1;
-    // const isOnset = generatedProfiles.slice(0, sliceMaxSize).map((profile) => profile.case);
-    //
-    // const rates = timePoints.map(t => {
-    //     let count = isOnset.filter(onset => onset === true).length;
-    //     return count / isOnset.length;
-    // });
+    const optimized = estimateWeibullParameters(timePoints, probabilities, profiles);
+    distributeCaseControl(profiles, optimized[0], optimized[1]);
 }
 
 async function generateData(pgsId, build, numberOfProfiles, minAge, maxAge, followUpPeriod) {
@@ -87,9 +71,9 @@ function draw(snpsInfo, numberOfProfiles, profiles, maxNumberOfProfiles) {
 
 async function loadIncidenceChart(incidenceRate, htmlElement) {
     try {
-        console.log(incidenceRate);
-        const labels = Object.keys(incidenceRate);
-        const ageData = Object.values(incidenceRate);
+        const labels = incidenceRate.map(entry => entry.age);
+        const ageData = incidenceRate.map(entry => entry.rate);
+
         const config = {
             type: 'line',
             data: {
@@ -163,23 +147,15 @@ function calculatePredictedIncidenceRate(profiles, minAge, maxAge) {
     });
 
     // Calculate the incidence rate per age
-    let incidenceRates = {};
+    let incidenceRates = [];
     for (let age in ageCounts) {
         let cases = caseCounts[age] || 0;
         let total = ageCounts[age];
-        incidenceRates[age] = cases / total;
+        let rate = cases / total;
+        incidenceRates.push({ age: parseInt(age, 10), rate });
     }
 
     return incidenceRates;
-}
-
-async function transformData() {
-    const dataArray = await parseCsv(incidenceRateFile);
-    let result = {};
-    dataArray.forEach((item, index) => {
-        result[index] = item[0];
-    });
-    return result;
 }
 
 // try {
@@ -250,7 +226,7 @@ document.getElementById('retrieveButton').addEventListener('click', async () => 
         const predictedIncidenceRate = calculatePredictedIncidenceRate(generatedProfiles, minAge, maxAge);
         await main(globalIncidenceFile);
 
-        await loadIncidenceChart(await transformData(), 'expectedIncidenceChart');
+        await loadIncidenceChart(await parseCsv(incidenceRateFile), 'expectedIncidenceChart');
         await loadIncidenceChart(predictedIncidenceRate, 'predictedIncidenceChart');
     }
     else {
