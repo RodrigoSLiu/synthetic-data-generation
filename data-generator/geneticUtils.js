@@ -109,7 +109,7 @@ export function distributeCaseControl(profiles, k, b, randomNumbers) {
 
     // Function to calculate the time of disease onset
     const calculateTimeDiseaseOnset = (age, random, prs, k, b) => {
-        const numerator = Math.log(0.8623125290154663);
+        const numerator = Math.log(random);
         const innerTerm = Math.pow(age, k) - (prs * Math.exp(b) / numerator);
 
         return Math.pow(innerTerm, 1 / k);
