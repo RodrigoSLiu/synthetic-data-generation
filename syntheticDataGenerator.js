@@ -15,7 +15,8 @@ import {
     countOccurrences,
     parseFile,
     parseCsv,
-    cdf
+    empiricalCdf,
+    generateWeibullIncidenceCurve
 } from './data-generator';
 
 export {
@@ -35,5 +36,6 @@ export {
     countOccurrences,
     parseFile,
     parseCsv,
-    cdf
+    empiricalCdf,
+    generateWeibullIncidenceCurve
 };

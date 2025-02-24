@@ -1,14 +1,12 @@
-export function cdf(incidenceRates, t, value) {
-    const cumulativeHazard = incidenceRates
-        .filter((x) => x.age <= t)
-        .map((x) => parseFloat(x[value]))
-        .reduce((acc, curr) => {
-            return acc + curr;
-        }, 0);
+export function empiricalCdf(incidenceRates) {
+    let cumulativeHazard = 0;
+    const cdfArray = incidenceRates.map((ageRate) => {
+        cumulativeHazard += ageRate.rate;
+        const cdf = 1 - Math.exp(-cumulativeHazard);
+        return { age: ageRate.age, cdf };
+    });
 
-    const cumulativeIncidence = 1 - Math.exp(-cumulativeHazard);
-
-    return cumulativeIncidence;
+    return cdfArray;
 }
 
 export function calculateRates(timePoints, timeOfOnset) {

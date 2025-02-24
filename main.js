@@ -10,7 +10,8 @@ import {
     renderSNPHistograms,
     parseCsv,
     countOccurrences,
-    cdf
+    empiricalCdf,
+    generateWeibullIncidenceCurve
 } from './syntheticDataGenerator.js';
 
 
@@ -21,7 +22,7 @@ let dependeciesUrl = [
     'https://cdnjs.cloudflare.com/ajax/libs/pako/1.0.11/pako.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/localforage/1.9.0/localforage.min.js'
 ];
-let sliceMaxSize = 1000;
+let sliceMaxSize = 100000;
 
 
 (async () => {
@@ -32,25 +33,17 @@ let sliceMaxSize = 1000;
     }
 })();
 
-async function generateCaseControlLabels(profiles) {
-    const slicedEntryAges = profiles.slice(0, sliceMaxSize).map((profile) => profile.ageOfEntry);
-    const slicedLinearPredictors = profiles.slice(0, sliceMaxSize).map((profile) => profile.prs);
-
-    // Calculate Weibull parameters and distribute case/control data
-    const timePoints = [10, 30, 50, 70];
-    const incidenceRate = await parseCsv(incidenceRateFile, { delimiter: ',' });
-    const probabilities = timePoints.map(value => cdf(incidenceRate, value, 'rate'));
-    const optimized = estimateWeibullParameters(timePoints, probabilities, profiles);
-    distributeCaseControl(profiles, optimized[0], optimized[1]);
-}
-
 async function generateData(pgsId, build, numberOfProfiles, minAge, maxAge, followUpPeriod) {
-    const timePoints = [30, 50, 70];
     const snpsInfo = await getSnpsInfo(pgsId, build);
     const [expLinearPredictors, generatedProfiles] = await processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge, followUpPeriod);
-    await generateCaseControlLabels(generatedProfiles);
+    const incidenceRate = await parseCsv(incidenceRateFile, { delimiter: ',' });
+    const weibullParameters = estimateWeibullParameters(empiricalCdf(incidenceRate), expLinearPredictors);
+    //const [k, b] = weibullParameters;
+    const [k, b] = [3.7627159210102077, 4.741080717191016e-9];
+    const predictedIncidenceRate = generateWeibullIncidenceCurve(k, b, expLinearPredictors, maxAge);
+    distributeCaseControl(generatedProfiles, k, b);
 
-    return { snpsInfo, generatedProfiles };
+    return { snpsInfo, generatedProfiles, predictedIncidenceRate };
 }
 
 function draw(snpsInfo, numberOfProfiles, profiles, maxNumberOfProfiles) {
@@ -69,55 +62,58 @@ function draw(snpsInfo, numberOfProfiles, profiles, maxNumberOfProfiles) {
     createTable(slicedProfiles);
 }
 
-async function loadIncidenceChart(incidenceRate, htmlElement) {
+async function loadIncidenceChart(observedData, predictedData, htmlElement) {
     try {
-        const labels = incidenceRate.map(entry => entry.age);
-        const ageData = incidenceRate.map(entry => entry.rate);
+        const labels = observedData.map(entry => entry.age);
 
         const config = {
             type: 'line',
             data: {
                 labels: labels,
-                datasets: [{
-                    label: 'Incidence Rate',
-                    data: ageData,
-                    borderColor: 'red',
-                    borderWidth: 2,
-                    fill: false,
-                    pointRadius: 0,
-                    pointHoverRadius: 5
-                }]
+                datasets: [
+                    // Observed Data (original curve)
+                    {
+                        label: 'Observed Incidence',
+                        data: observedData.map(entry => entry.rate),
+                        borderColor: 'red',
+                        borderWidth: 2,
+                        fill: false,
+                        pointRadius: 0,
+                        borderDash: [5, 5] // Optional: dashed line
+                    },
+                    // Predicted Data (second curve)
+                    {
+                        label: 'Predicted Incidence',
+                        data: predictedData.map(entry => entry.rate),
+                        borderColor: 'blue',
+                        borderWidth: 2,
+                        fill: false,
+                        pointRadius: 0
+                    }
+                ]
             },
             options: {
                 responsive: true,
                 plugins: {
                     title: {
                         display: true,
-                        text: 'Breast Cancer Incidence Rates',
-                        font: {
-                            size: 20
-                        }
+                        text: 'Observed vs. Predicted Incidence Rates',
+                        font: { size: 20 }
                     },
                     tooltip: {
                         callbacks: {
                             label: function(tooltipItem) {
-                                return `Age: ${tooltipItem.label}, Rate: ${tooltipItem.raw.toFixed(4)}`;
+                                const datasetLabel = tooltipItem.dataset.label;
+                                const value = tooltipItem.raw.toFixed(4);
+                                return `${datasetLabel} - Age ${tooltipItem.label}: ${value}`;
                             }
                         }
                     }
                 },
                 scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Age →'
-                        }
-                    },
+                    x: { title: { display: true, text: 'Age →' } },
                     y: {
-                        title: {
-                            display: true,
-                            text: '↑ Rate'
-                        },
+                        title: { display: true, text: '↑ Incidence Rate' },
                         beginAtZero: true
                     }
                 }
@@ -211,7 +207,7 @@ document.getElementById('retrieveButton').addEventListener('click', async () => 
     // const maxAge = document.getElementById('maxAge').value;
     // const followUpPeriod = document.getElementById('followUp').value;
 
-    let numberOfProfiles = '10000';
+    let numberOfProfiles = '100000';
     let minAge = '1';
     let maxAge = '81';
     let followUpPeriod = '10';
@@ -219,15 +215,19 @@ document.getElementById('retrieveButton').addEventListener('click', async () => 
     if (pgsIdInput.match(/^[0-9]{1,6}$/)) {
         const {
             snpsInfo,
-            generatedProfiles
+            generatedProfiles,
+            predictedIncidenceRate
         } = await generateData(pgsIdInput, buildInput, parseFloat(numberOfProfiles), parseFloat(minAge), parseFloat(maxAge), parseFloat(followUpPeriod));
-        draw(snpsInfo, numberOfProfiles, generatedProfiles, sliceMaxSize);
+        draw(snpsInfo, numberOfProfiles, generatedProfiles, 100);
 
-        const predictedIncidenceRate = calculatePredictedIncidenceRate(generatedProfiles, minAge, maxAge);
+
         await main(globalIncidenceFile);
-
-        await loadIncidenceChart(await parseCsv(incidenceRateFile), 'expectedIncidenceChart');
-        await loadIncidenceChart(predictedIncidenceRate, 'predictedIncidenceChart');
+        console.log(predictedIncidenceRate);
+        await loadIncidenceChart(
+            await parseCsv(incidenceRateFile),  // Array of {age: number, rate: number}
+            predictedIncidenceRate, // Array of {age: number, rate: number}
+            'expectedIncidenceChart'
+        );
     }
     else {
         alert('Please enter a valid PGS ID (1 to 6 digits).');

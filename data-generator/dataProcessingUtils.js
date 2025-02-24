@@ -37,7 +37,7 @@ export async function processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge
             id: `Q-${i + 1}`,
             ageOfEntry: ages[i],
             ageOfExit: ages[i] + followUpPeriod,
-            prs: Math.exp(prs),
+            prs: prs,
             case: false,
             onsetAge: 0,
             randomNumber: Math.random(),
