@@ -4,7 +4,6 @@ import {
     getRsIds,
     getChromosomeAndPosition,
     generateAlleleDosage,
-    distributeCaseControl,
     estimateWeibullParameters,
     getSnpsInfo,
     renderHistogram,
@@ -16,7 +15,11 @@ import {
     parseFile,
     parseCsv,
     empiricalCdf,
-    generateWeibullIncidenceCurve
+    generateWeibullIncidenceCurve,
+    processPRS,
+    matchCasesWithControls,
+    dataToCSV,
+    downloadCSV
 } from './data-generator';
 
 export {
@@ -25,7 +28,6 @@ export {
     getRsIds,
     getChromosomeAndPosition,
     generateAlleleDosage,
-    distributeCaseControl,
     estimateWeibullParameters,
     getSnpsInfo,
     renderHistogram,
@@ -37,5 +39,9 @@ export {
     parseFile,
     parseCsv,
     empiricalCdf,
-    generateWeibullIncidenceCurve
+    generateWeibullIncidenceCurve,
+    processPRS,
+    matchCasesWithControls,
+    dataToCSV,
+    downloadCSV
 };

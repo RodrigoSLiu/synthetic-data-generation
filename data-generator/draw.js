@@ -50,52 +50,80 @@ export function displaySNP(snp) {
     document.getElementById('snpDisplay').textContent = `SNP: rs${snp}`;
 }
 
-export function createTable(data, tableId = 'generatedTable') {
-    // Find or create the table container element
-    let tableContainer = document.getElementById(tableId);
-    if (!tableContainer) {
-        tableContainer = document.createElement('div');
-        tableContainer.id = tableId;
-        document.body.appendChild(tableContainer);
+export function createTable(header, data, tableId = 'groupedTable', useDividers = true) {
+    if (!data || !data.length) {
+        console.error('No data provided for table');
+        return;
     }
 
-    // Clear any existing table content
+    const tableContainer = document.getElementById(tableId) || document.createElement('div');
+    tableContainer.id = tableId;
     tableContainer.innerHTML = '';
+    document.body.appendChild(tableContainer);
 
-    // Create the table element
     const table = document.createElement('table');
     table.style.borderCollapse = 'collapse';
     table.style.width = '100%';
+    table.style.margin = '20px 0';
 
-    // Create the table header
-    const headers = Object.keys(data[0]); // Assumes all objects have the same keys
+    // Create header row
     const headerRow = document.createElement('tr');
-    headers.forEach(headerText => {
+    header.forEach(headerText => {
         const th = document.createElement('th');
         th.textContent = headerText;
-        th.style.border = '1px solid black';
-        th.style.padding = '8px';
-        th.style.backgroundColor = '#f2f2f2';
-        th.style.textAlign = 'center';
+        th.style.border = '1px solid #222';
+        th.style.padding = '12px';
+        th.style.backgroundColor = '#f8f9fa';
+        th.style.fontWeight = '600';
         headerRow.appendChild(th);
     });
     table.appendChild(headerRow);
 
-    // Add rows
-    data.forEach(rowData => {
-        const row = document.createElement('tr');
-        headers.forEach(header => {
+    // Create data rows
+    data.forEach((row, rowIndex) => {
+        const tr = document.createElement('tr');
+
+        row.forEach((cellValue, cellIndex) => {
             const td = document.createElement('td');
-            td.textContent = rowData[header];
-            td.style.border = '1px solid black';
-            td.style.padding = '8px';
+            const headerName = header[cellIndex];
+            let formattedValue = cellValue;
+
+            // Format based on header name and data type
+            if (typeof cellValue === 'number') {
+                if (headerName.toLowerCase().includes('prs')) {
+                    formattedValue = cellValue.toFixed(4);
+                }
+                else {
+                    formattedValue = Number.isInteger(cellValue)
+                        ? cellValue
+                        : parseInt(cellValue, 10);
+                }
+            }
+            else if (Array.isArray(cellValue)) {
+                formattedValue = cellValue.join(', ');
+            }
+
+            td.textContent = formattedValue;
+            td.style.border = '1px solid #ddd';
+            td.style.padding = '10px';
             td.style.textAlign = 'center';
-            row.appendChild(td);
+            tr.appendChild(td);
         });
-        table.appendChild(row);
+
+        table.appendChild(tr);
+
+        // Add optional divider
+        if (useDividers && rowIndex < data.length - 1) {
+            const dividerRow = document.createElement('tr');
+            const dividerCell = document.createElement('td');
+            dividerCell.colSpan = header.length;
+            dividerCell.style.height = '2px';
+            dividerCell.style.backgroundColor = '#eee';
+            dividerRow.appendChild(dividerCell);
+            table.appendChild(dividerRow);
+        }
     });
 
-    // Append the table to the container
     tableContainer.appendChild(table);
 }
 

@@ -8,10 +8,55 @@
         canvas {
             border: 1px solid black;
         }
+
+        /* Loading screen styles */
+        #loadingScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            flex-direction: column;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        #loadingText {
+            font-size: 1.2em;
+            color: #333;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+<!-- Loading Screen -->
+<div id="loadingScreen">
+    <div class="spinner"></div>
+    <div id="loadingText">Generating data... Please wait</div>
+</div>
+
 <h1>Retrieve PGS Data</h1>
 <label for="pgsId">Enter PGS ID:</label>
 <input type="text" id="pgsId" placeholder="PGS ID" required>
@@ -43,15 +88,14 @@
 
 <h1>Expected Breast Cancer Incidence Rates</h1>
 <canvas id="expectedIncidenceChart"></canvas>
+<br><br>
 
-<h1>Predicted Breast Cancer Incidence Rates</h1>
-<canvas id="predictedIncidenceChart"></canvas>
-
-<h2 id="snpDisplay">SNP: </h2>
-<h1>Generated Profiles Occurrence Visualization</h1>
-<canvas id="generatedHistogram" width="400" height="300"></canvas>
-<h1>Expected Profiles Occurrence Visualization</h1>
-<canvas id="expectedHistogram" width="400" height="300"></canvas>
+<div>
+    <button id="downloadProfiles">Download All Profiles</button>
+    <br>
+    <button id="downloadCasesControls">Download Cases and Controls</button>
+</div>
+<br><br>
 
 <script type="module" src="main.js"></script>
 </body>

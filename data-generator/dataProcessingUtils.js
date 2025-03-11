@@ -3,11 +3,7 @@ import { generateAlleleDosage } from './geneticUtils.js';
 // TODO: TESTING PURPOSES
 import { testData } from '../test.js';
 
-export async function processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge, followUpPeriod) {
-    // Assign random ages evenly distributed within a range
-    const assignAges = (num, min, max) =>
-        Array.from({ length: num }, () => Math.floor(Math.random() * (max - min + 1)) + min);
-
+export function processPRS(snpsInfo) {
     // Validate SNP data
     if (!snpsInfo.length) {
         throw new Error('No SNPs available for profile generation.');
@@ -19,35 +15,78 @@ export async function processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge
         }
     });
 
-    const ages = assignAges(numberOfProfiles, minAge, maxAge);
-    const profiles = [];
-    const expLinearPredictors = [];
+    const populationSize = 100000;
+    let linearPredictors = [];
 
     // Generate profiles
-    for (let i = 0; i < numberOfProfiles; i++) {
+    for (let i = 0; i < populationSize; i++) {
         let prs = 0;
-
         const allelesDosage = snpsInfo.map(({ weight, alleleDosageFrequency }) => {
             const dosage = generateAlleleDosage(alleleDosageFrequency);
             prs += weight * dosage;
             return dosage;
         });
 
-        profiles.push({
-            id: `Q-${i + 1}`,
-            ageOfEntry: ages[i],
-            ageOfExit: ages[i] + followUpPeriod,
-            prs: prs,
-            case: false,
-            onsetAge: 0,
-            randomNumber: Math.random(),
-            allelesDosage: Uint8Array.from(allelesDosage)
-        });
-
-        expLinearPredictors.push(Math.exp(prs));
+        linearPredictors.push(prs);
     }
 
-    return [expLinearPredictors, profiles];
+    return Float64Array.from(linearPredictors);
+}
+
+export async function processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge, minFollowUp, maxFollowUp, k, b) {
+    // Validate SNP data
+    if (!snpsInfo.length) {
+        throw new Error('No SNPs available for profile generation.');
+    }
+
+    // Generate header structure
+    const baseHeader = ['id', 'ageOfEntry', 'ageOfExit', 'prs', 'case', 'ageOfOnset'];
+    const snpHeaders = snpsInfo.map(snp => snp.id);
+    const header = [...baseHeader, ...snpHeaders];
+
+    // Helper functions
+    const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+    const calculateTimeDiseaseOnset = (age, prs) => {
+        while (true) {
+            const numerator = Math.log(Math.random());
+            const val = Math.pow(age, k) - numerator / (b * Math.exp(prs));
+            if (val >= 0) return Math.pow(val, 1 / k);
+        }
+    };
+
+    // Generate profiles data
+    const data = [];
+    for (let i = 0; i < numberOfProfiles; i++) {
+        let prs = 0;
+        const ageOfEntry = getRandomInt(minAge, maxAge);
+        const ageOfExit = ageOfEntry + getRandomInt(minFollowUp, maxFollowUp);
+        const onsetAge = Math.round(calculateTimeDiseaseOnset(ageOfEntry, prs));
+        const isCase = onsetAge < ageOfExit ? 1 : 0;
+
+        // Generate SNP dosages and calculate PRS
+        const snpDosages = snpsInfo.map(({ weight, alleleDosageFrequency }) => {
+            const dosage = generateAlleleDosage(alleleDosageFrequency);
+            prs += weight * dosage;
+
+            return dosage;
+        });
+
+        // Create profile array
+        const profileArray = [
+            i + 1, // Numerical ID
+            ageOfEntry,
+            ageOfExit,
+            Number(prs.toFixed(8)), // Rounded PRS
+            isCase,
+            isCase ? onsetAge : null, // Use null instead of Infinity for missing values
+            ...snpDosages
+        ];
+
+        data.push(profileArray);
+    }
+
+    return { header, data };
 }
 
 export async function processSnpData(snpData) {
@@ -64,6 +103,8 @@ export async function processSnpData(snpData) {
     const indices = {
         chromosome: headers.indexOf('chr_name'),
         position: headers.indexOf('chr_position'),
+        effect: headers.indexOf('effect_allele'),
+        other: headers.indexOf('other_allele'),
         weight: headers.indexOf('effect_weight'),
         maf: headers.indexOf('allelefrequency_effect')
     };
@@ -74,8 +115,7 @@ export async function processSnpData(snpData) {
 
     // Extract SNP data
     let snpInfo = values.map(row => ({
-        chromosome: row[indices.chromosome],
-        position: row[indices.position],
+        id: `${row[indices.chromosome]}:${row[indices.position]}:${row[indices.effect]}:${row[indices.other]}`,
         weight: row[indices.weight],
         maf: row[indices.maf]
     }));
@@ -92,7 +132,7 @@ export async function processSnpData(snpData) {
         if (!snp.rsID) {
             console.warn('Missing SNP ID for:', snp);
 
-            snp.rsID = `${snp.chromosome}+${snp.position}`;
+            snp.rsID = snp.id;
         }
         snp.alleleDosageFrequency = calculateHWE(snp.maf);
     });

@@ -1,20 +1,17 @@
 import { loadDependencies } from './data-generator/loaders.js';
 import { main } from './data-generator/incidenceRate.js';
 import {
-    getSnpsInfo,
-    processProfiles,
-    estimateWeibullParameters,
-    distributeCaseControl,
     createTable,
-    displaySNP,
-    renderSNPHistograms,
     parseCsv,
-    countOccurrences,
-    empiricalCdf,
-    generateWeibullIncidenceCurve
+    dataToCSV,
+    downloadCSV
 } from './syntheticDataGenerator.js';
 
 
+window.profileStore = {
+    generatedProfiles: null,
+    matchedGroups: null
+};
 let incidenceRateFile = 'data/age_specific_breast_cancer_incidence_rates.csv';
 let globalIncidenceFile = 'data/incidence.csv';
 let profilesSliceSize = 100;
@@ -33,33 +30,13 @@ let sliceMaxSize = 100000;
     }
 })();
 
-async function generateData(pgsId, build, numberOfProfiles, minAge, maxAge, followUpPeriod) {
-    const snpsInfo = await getSnpsInfo(pgsId, build);
-    const [expLinearPredictors, generatedProfiles] = await processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge, followUpPeriod);
-    const incidenceRate = await parseCsv(incidenceRateFile, { delimiter: ',' });
-    const weibullParameters = estimateWeibullParameters(empiricalCdf(incidenceRate), expLinearPredictors);
-    //const [k, b] = weibullParameters;
-    const [k, b] = [3.7627159210102077, 4.741080717191016e-9];
-    const predictedIncidenceRate = generateWeibullIncidenceCurve(k, b, expLinearPredictors, maxAge);
-    distributeCaseControl(generatedProfiles, k, b);
-
-    return { snpsInfo, generatedProfiles, predictedIncidenceRate };
-}
-
-function draw(snpsInfo, numberOfProfiles, profiles, maxNumberOfProfiles) {
-    // SNP Occurrence
-    const rsIds = snpsInfo.map(snp => snp.rsID);
-    const randomIndex = Object.keys(rsIds)[Math.floor(Math.random() * Object.keys(rsIds).length)];
-    const slicedProfiles = profiles.slice(0, maxNumberOfProfiles);
-    const occurrence = countOccurrences(randomIndex, profiles);
-
-    // Render histograms
-    const randomSnp = snpsInfo.filter(snp => snp.rsID === rsIds[randomIndex]);
-    renderSNPHistograms(randomSnp, occurrence, numberOfProfiles, maxNumberOfProfiles);
+function draw(numberOfProfiles, profiles, maxNumberOfProfiles) {
+    const profilesHeader = profiles.header;
+    const profilesData = profiles.data;
+    const slicedProfiles = profilesData.slice(0, maxNumberOfProfiles);
 
     // Display SNP and Table
-    displaySNP(rsIds[randomIndex]);
-    createTable(slicedProfiles);
+    createTable(profilesHeader, slicedProfiles);
 }
 
 async function loadIncidenceChart(observedData, predictedData, htmlElement) {
@@ -126,33 +103,15 @@ async function loadIncidenceChart(observedData, predictedData, htmlElement) {
     }
 }
 
-function calculatePredictedIncidenceRate(profiles, minAge, maxAge) {
-    let ageCounts = {};  // Tracks how many people are at each age
-    let caseCounts = {}; // Tracks how many cases occurred at each age
+document.getElementById('downloadProfiles').addEventListener('click', () => {
+    const csvData = dataToCSV(window.profileStore.generatedProfiles);
+    downloadCSV(csvData, 'all_profiles');
+});
 
-    profiles.forEach(profile => {
-        for (let age = minAge; age <= maxAge; age++) {
-            // Count the number of people at each age
-            ageCounts[age] = (ageCounts[age] || 0) + 1;
-
-            // If a case occurred at this age, increment case count
-            if (profile.case && age === profile.onsetAge) {
-                caseCounts[age] = (caseCounts[age] || 0) + 1;
-            }
-        }
-    });
-
-    // Calculate the incidence rate per age
-    let incidenceRates = [];
-    for (let age in ageCounts) {
-        let cases = caseCounts[age] || 0;
-        let total = ageCounts[age];
-        let rate = cases / total;
-        incidenceRates.push({ age: parseInt(age, 10), rate });
-    }
-
-    return incidenceRates;
-}
+document.getElementById('downloadCasesControls').addEventListener('click', () => {
+    const csvData = dataToCSV(window.profileStore.matchedGroups);
+    downloadCSV(csvData, 'cases_controls');
+});
 
 // try {
 //     // Generate profiles
@@ -200,36 +159,67 @@ function calculatePredictedIncidenceRate(profiles, minAge, maxAge) {
 *    If there is MAF, maybe get it from eutils too, ask Jeya
 */
 document.getElementById('retrieveButton').addEventListener('click', async () => {
+    const loadingScreen = document.getElementById('loadingScreen');
     const pgsIdInput = document.getElementById('pgsId').value.trim();
     const buildInput = document.querySelector('input[name="build"]:checked').value;
-    // const numberOfProfiles = document.getElementById('numberOfProfiles').value;
-    // const minAge = document.getElementById('minAge').value;
-    // const maxAge = document.getElementById('maxAge').value;
-    // const followUpPeriod = document.getElementById('followUp').value;
 
-    let numberOfProfiles = '100000';
-    let minAge = '1';
-    let maxAge = '81';
-    let followUpPeriod = '10';
+    loadingScreen.style.display = 'flex';
 
-    if (pgsIdInput.match(/^[0-9]{1,6}$/)) {
-        const {
-            snpsInfo,
-            generatedProfiles,
-            predictedIncidenceRate
-        } = await generateData(pgsIdInput, buildInput, parseFloat(numberOfProfiles), parseFloat(minAge), parseFloat(maxAge), parseFloat(followUpPeriod));
-        draw(snpsInfo, numberOfProfiles, generatedProfiles, 100);
+    try {
+        if (pgsIdInput.match(/^[0-9]{1,6}$/)) {
+            const worker = new Worker('worker.js');
 
+            worker.postMessage({
+                pgsId: pgsIdInput,
+                build: buildInput,
+                numberOfProfiles: 10000,//document.getElementById('numberOfProfiles').value,
+                minAge: 54,//document.getElementById('minAge').value,
+                maxAge: 63,//document.getElementById('maxAge').value,
+                minFollow: 5,//document.getElementById('followUp').value,
+                maxFollow: 13,//document.getElementById('followUp').value,
+                incidenceRateFile: 'data/age_specific_breast_cancer_incidence_rates.csv',
+                globalIncidenceFile: 'data/incidence.csv'
+            });
 
-        await main(globalIncidenceFile);
-        console.log(predictedIncidenceRate);
-        await loadIncidenceChart(
-            await parseCsv(incidenceRateFile),  // Array of {age: number, rate: number}
-            predictedIncidenceRate, // Array of {age: number, rate: number}
-            'expectedIncidenceChart'
-        );
-    }
-    else {
-        alert('Please enter a valid PGS ID (1 to 6 digits).');
+            worker.onmessage = async (e) => {
+                if (e.data.error) {
+                    throw new Error(e.data.error);
+                }
+
+                // Store profiles globally
+                window.profileStore = {
+                    snpsInfo: e.data.snpsInfo,
+                    predictedIncidenceRate: e.data.predictedIncidenceRate,
+                    generatedProfiles: e.data.generatedProfiles,
+                    matchedProfiles: e.data.matchedProfiles,
+                    matchedGroups: e.data.matchedGroups
+                };
+
+                draw(e.data.snpsInfo, e.data.matchedGroups, 100);
+                await main(globalIncidenceFile);
+                await loadIncidenceChart(
+                    await parseCsv(incidenceRateFile),
+                    e.data.predictedIncidenceRate,
+                    'expectedIncidenceChart'
+                );
+
+                worker.terminate();
+                loadingScreen.style.display = 'none';
+            };
+
+            worker.onerror = (error) => {
+                console.error('Worker error:', error);
+                loadingScreen.style.display = 'none';
+                alert('Error during data generation: ' + error.message);
+            };
+        }
+        else {
+            alert('Please enter a valid PGS ID (1 to 6 digits).');
+            loadingScreen.style.display = 'none';
+        }
+    } catch (error) {
+        console.error(error);
+        loadingScreen.style.display = 'none';
+        alert('Error: ' + error.message);
     }
 });
