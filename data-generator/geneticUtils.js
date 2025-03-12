@@ -7,65 +7,55 @@ import { processSnpData } from './dataProcessingUtils.js';
 import { nelderMead } from './nelderMead.js';
 
 
-// export async function getRsIds(snpInfo, apiKey) {
-//     const requestLimit = 100;
-//
-//     const results = await asyncPool(requestLimit, snpInfo, async (snpInfo) => {
-//         const { chromosome, position } = snpInfo;
-//         //const eUtilsURL = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=snp&term=${chromosome}[Chromosome]&${position}[Base Position]&retmode=json&api_key=${apiKey}`;
-//         const eUtilsURL = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=snp&term=${position}[BPOSITION]&${chromosome}[BCHR]&retmode=json&api_key=${apiKey}`;
-//
-//         try {
-//             const response = await httpRequest(eUtilsURL);
-//             const data = await response.json();
-//             const idListLength = data.esearchresult.idlist.length;
-//             const rsID = data.esearchresult.idlist[idListLength - 1];
-//
-//             if (!rsID) {
-//                 console.error(`No SNP found at chromosome ${chromosome} and position ${position}.`);
-//
-//                 return null;
-//             }
-//             snpInfo.rsID = rsID;
-//
-//             return snpInfo;
-//         } catch (error) {
-//             console.error(`Error fetching rsID for chromosome ${chromosome} and position ${position}: ${error.message}`);
-//
-//             return null;
-//         }
-//     });
-//
-//     return results.filter(Boolean);
-// }
-
 export async function getRsIds(snpsInfo, apiKey) {
-    const requestInterval = 1; // 100ms per request = 10 requests/second
+    const requestInterval = 100; // 100ms between different SNPs
+    const retryDelay = 150;       // 50ms between retries for same SNP
+    const maxRetries = 3;
 
-    for (let i = 0; i < snpsInfo.length; i++) {
-        const { chromosome, position } = snpsInfo[i];
-        const eUtilsURL = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=snp&term=${snpsInfo[i].position}[BPOSITION]&${snpsInfo[i].chromosome}[BCHR]&retmode=json&api_key=${apiKey}`;
+    // Helper function with exponential backoff
+    const fetchWithRetry = async (url) => {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            let response = await fetch(url);
+            console.log(response.ok);
+            if (!response.ok) {
+                console.log(`Failed to fetch, trying attempt number ${attempt}`);
+                if (attempt < maxRetries) {
+                    console.log(`Failed to fetch, trying attempt number ${attempt}`);
+                    await sleep(retryDelay);
+                }
+                else throw new Error(`HTTP ${response.status}`);
+            }
+            else {
+                return response.json();
+            }
+        }
+    };
+
+    for (let i = 0; i < snpsInfo.length - 300; i++) { // Removed -310 from loop condition
+        const snpString = snpsInfo[i].id;
+        const [chromosome, position] = snpString.split(':');
+        const eUtilsURL = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=snp&term=${chromosome}[BCHR]+AND+${position}[BPOSITION]&retmode=json${apiKey ? `&api_key=${apiKey}` : ''}`;
 
         try {
-            const response = await httpRequest(eUtilsURL);
-            await response.json().then((data) => {
-                const rsID = data.esearchresult.idlist[0];
+            const data = await fetchWithRetry(eUtilsURL);
+            const rsID = data?.esearchresult?.idlist?.[0];
 
-                if (!rsID) {
-                    console.error(`No rsID found for chromosome ${chromosome} and position ${position}.`);
+            if (!rsID) {
+                console.error(`No rsID found for ${snpString} after ${maxRetries} attempts`);
+                continue;
+            }
 
-                    return;
-                }
-
-                console.log(`rs${rsID} was added.`);
-                snpsInfo[i].rsID = rsID;
-            });
+            console.log(`rs${rsID} added for ${snpString}`);
+            snpsInfo[i].rsID = rsID;
         } catch (error) {
-            console.error(`Error fetching rsID for chromosome ${chromosome} and position ${position}: ${error.message}`);
+            console.error(`Failed attempt for ${snpString}: ${error.message}`);
         }
 
+        // Only wait if not last item
         if (i < snpsInfo.length - 1) await sleep(requestInterval);
     }
+
+    return snpsInfo;
 }
 
 export async function getChromosomeAndPosition(rsIDs, genomeBuild, apiKey) {
@@ -189,12 +179,10 @@ export function estimateWeibullParameters(empiricalCdf, linearPredictors) {
 }
 
 export async function getSnpsInfo(pgsId, build) {
-    const load = await loadScore(pgsId, build);
-    const parsedFile = parseFile(load);
-    const snpsInfo = await processSnpData(parsedFile);
-    const rsIds = snpsInfo.map(snp => snp.rsID);
+    const loadPgsModel = await loadScore(pgsId, build);
+    const parsedPgsModel = parseFile(loadPgsModel);
 
-    return snpsInfo;
+    return await processSnpData(parsedPgsModel);
 }
 
 export function matchCasesWithControls(
@@ -275,6 +263,15 @@ export function matchCasesWithControls(
             controls: selectedControls
         });
     });
+
+    const totalControls = matched.reduce((sum, m) => sum + m.controls.length, 0);
+
+    console.log(
+        `Case-Control Matching Complete:\n` +
+        `   - Cases matched: ${matched.length} (target: ${targetCases})\n` +
+        `   - Controls matched: ${totalControls} (target: ${targetControls})\n` +
+        `   - Matching ratio: 1:${(totalControls / matched.length).toFixed(2)}`
+    );
 
     return matched;
 }

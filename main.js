@@ -21,7 +21,6 @@ let dependeciesUrl = [
 ];
 let sliceMaxSize = 100000;
 
-
 (async () => {
     try {
         await loadDependencies(dependeciesUrl);
