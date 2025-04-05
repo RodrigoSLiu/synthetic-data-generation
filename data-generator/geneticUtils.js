@@ -199,55 +199,81 @@ export function matchCasesWithControls(
     const entryIdx = header.indexOf(entryVariable);
     const exitIdx = header.indexOf(exitVariable);
     const idIdx = header.indexOf('id');
+    const onsetIdx = header.indexOf('ageOfOnset');
 
     // Validate column indexes
-    [caseIdx, entryIdx, exitIdx, idIdx].forEach((idx, i) => {
-        if (idx === -1) throw new Error(`Missing required column: ${[caseVariable, entryVariable, exitVariable, 'id'][i]}`);
+    [caseIdx, entryIdx, exitIdx, idIdx, onsetIdx].forEach((idx, i) => {
+        if (idx === -1) throw new Error(`Missing required column: ${[caseVariable, entryVariable, exitVariable, 'id', 'ageOfOnset'][i]}`);
     });
 
-    // Split population
+    // Split population (assuming exact case count exists)
     const allCases = data.filter(row => row[caseIdx] === 1);
     const allControls = data.filter(row => row[caseIdx] === 0);
 
-    // Calculate targets
-    const targetCases = Math.round(totalTarget * caseControlRatio);
-    const targetControls = totalTarget - targetCases;
-
-    // Resample cases if needed
-    let selectedCases = allCases.length >= targetCases
-        ? shuffleArray(allCases).slice(0, targetCases)
-        : Array.from({ length: targetCases }, () => allCases[Math.floor(Math.random() * allCases.length)]);
+    // Calculate control targets using your original logic
+    const targetCases = allCases.length; // Use all available cases
+    const targetControls = Math.min(
+        Math.round(totalTarget * (1 - caseControlRatio)),
+        allControls.length
+    );
 
     const matched = [];
-    let controlPool = [...allControls];
-    let totalControls = 0;
+    const controlPool = [...allControls];
+    const shuffledCases = shuffleArray(allCases);
 
-    // Initial matching pass
-    selectedCases.forEach(caseRow => {
+    // Your exact control distribution logic
+    const minControlsPerCase = 1;
+    const baseControlsPerCase = Math.floor(targetControls / targetCases);
+    const extraControlProbability = (targetControls % targetCases) / targetCases;
+
+    shuffledCases.forEach(caseRow => {
         let ageOffset = 0;
         let eligibleControls = [];
-        const caseOnsetAge = caseRow[header.indexOf('ageOfOnset')];
+        const caseOnsetAge = caseRow[onsetIdx];
+        console.log(`\n=== Matching case with onset age: ${caseOnsetAge} ===`);
 
         // Progressive age expansion
-        while (eligibleControls.length < 1 && ageOffset <= 10) {
+        while (eligibleControls.length < minControlsPerCase && ageOffset <= 10) {
             eligibleControls = controlPool.filter(controlRow => {
                 const controlEntry = controlRow[entryIdx];
                 const controlExit = controlRow[exitIdx];
                 return Math.abs(controlEntry - caseOnsetAge) <= ageOffset &&
                     controlExit >= caseOnsetAge;
             });
+            console.log(`Age offset: ${ageOffset} (${caseOnsetAge - ageOffset} to ${caseOnsetAge + ageOffset})`);
+            console.log(`Potential controls:`, eligibleControls.map(c => ({
+                id: c[idIdx],
+                entry: c[entryIdx],
+                exit: c[exitIdx]
+            })));
             ageOffset++;
         }
 
-        // Calculate controls needed per case
-        const remainingDeficit = targetControls - totalControls;
-        const baseNeeded = Math.floor(remainingDeficit / (targetCases - matched.length));
-        const needed = Math.max(1, Math.min(baseNeeded, eligibleControls.length));
+        console.log(`Final matched controls for case ${caseRow[idIdx]} (onset ${caseOnsetAge}):`,
+            eligibleControls.map(c => ({
+                id: c[idIdx],
+                entry: c[entryIdx],
+                exit: c[exitIdx],
+                ageDiff: Math.abs(c[entryIdx] - caseOnsetAge)
+            }))
+        );
 
-        // Select controls
-        const selectedControls = shuffleArray(eligibleControls).slice(0, needed);
-        controlPool = controlPool.filter(c => !selectedControls.some(sc => sc[idIdx] === c[idIdx]));
-        totalControls += selectedControls.length;
+        // Your original control assignment logic
+        const numToAssign = Math.max(
+            minControlsPerCase,
+            Math.min(
+                baseControlsPerCase + (Math.random() < extraControlProbability ? 1 : 0),
+                eligibleControls.length
+            )
+        );
+
+        const selectedControls = shuffleArray(eligibleControls).slice(0, numToAssign);
+
+        // Remove used controls from pool
+        selectedControls.forEach(control => {
+            const index = controlPool.findIndex(c => c[idIdx] === control[idIdx]);
+            if (index > -1) controlPool.splice(index, 1);
+        });
 
         matched.push({
             case: caseRow,
@@ -255,25 +281,12 @@ export function matchCasesWithControls(
         });
     });
 
-    // Second pass: Resample controls if still short
-    if (totalControls < targetControls) {
-        const needed = targetControls - totalControls;
-        const resampledControls = Array.from({ length: needed }, () =>
-            allControls[Math.floor(Math.random() * allControls.length)]
-        );
-
-        // Distribute resampled controls evenly
-        resampledControls.forEach((control, i) => {
-            const targetCase = matched[i % matched.length];
-            targetCase.controls.push(control);
-        });
-        totalControls += needed;
-    }
+    const totalControls = matched.reduce((sum, m) => sum + m.controls.length, 0);
 
     console.log(
         `Case-Control Matching Complete:\n` +
-        `   - Cases matched: ${matched.length} (target: ${targetCases})\n` +
-        `   - Controls matched: ${totalControls} (target: ${targetControls})\n` +
+        `   - Cases matched: ${matched.length}\n` +
+        `   - Controls matched: ${totalControls} (available: ${allControls.length})\n` +
         `   - Matching ratio: 1:${(totalControls / matched.length).toFixed(2)}`
     );
 
@@ -281,10 +294,10 @@ export function matchCasesWithControls(
 }
 
 function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
+    const arr = [...array];
+    for (let i = arr.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
+        [arr[i], arr[j]] = [arr[j], arr[i]];
     }
-
-    return array;
+    return arr;
 }

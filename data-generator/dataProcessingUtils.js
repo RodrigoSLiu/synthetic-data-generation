@@ -66,7 +66,6 @@ export async function processSnpData(snpData) {
 
     // Add rsIDs and validate SNP data
     //snpInfo = await getRsIds(snpInfo);//, API_KEY);
-    console.log(snpInfo);
     if (!snpInfo.length) {
         throw new Error('No valid SNPs processed. Check the input PGS file or SNP lookup results.');
     }
@@ -84,7 +83,67 @@ export async function processSnpData(snpData) {
     return snpInfo;
 }
 
-export async function processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge, minFollowUp, maxFollowUp, k, b) {
+// export async function processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge, minFollowUp, maxFollowUp, k, b) {
+//     // Validate SNP data
+//     if (!snpsInfo.length) {
+//         throw new Error('No SNPs available for profile generation.');
+//     }
+//
+//     // Generate header structure
+//     const baseHeader = ['id', 'ageOfEntry', 'ageOfExit', 'prs', 'case', 'ageOfOnset'];
+//     const snpHeaders = snpsInfo.map(snp => snp.id);
+//     const header = [...baseHeader, ...snpHeaders];
+//
+//     // Helper functions
+//     const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+//
+//     const calculateTimeDiseaseOnset = (age, prs, k, b) => {
+//         while (true) {
+//             const numerator = Math.log(Math.random());
+//             const val = Math.pow(age, k) - numerator / (b * Math.exp(prs));
+//             if (val >= 0) return Math.pow(val, 1 / k);
+//         }
+//     };
+//
+//     // Generate profiles data
+//     const data = [];
+//     for (let i = 0; i < numberOfProfiles; i++) {
+//         let prs = 0;
+//         const ageOfEntry = getRandomInt(minAge, maxAge);
+//         const ageOfExit = ageOfEntry + getRandomInt(minFollowUp, maxFollowUp);
+//         const onsetAge = Math.round(calculateTimeDiseaseOnset(ageOfEntry, prs, k, b));
+//         const isCase = onsetAge < ageOfExit ? 1 : 0;
+//
+//         // Generate SNP dosages and calculate PRS
+//         const snpDosages = snpsInfo.map(({ weight, alleleDosageFrequency }) => {
+//             const dosage = generateAlleleDosage(alleleDosageFrequency);
+//             prs += weight * dosage;
+//
+//             return dosage;
+//         });
+//
+//         // Create profile array
+//         const profileArray = [
+//             i + 1, // Numerical ID
+//             ageOfEntry,
+//             ageOfExit,
+//             Number(prs.toFixed(8)), // Rounded PRS
+//             isCase,
+//             isCase ? onsetAge : null, // Use null instead of Infinity for missing values
+//             ...snpDosages
+//         ];
+//
+//         data.push(profileArray);
+//     }
+//     const caseIdx = header.indexOf('case');
+//     // Split population
+//     const allCases = data.filter(row => row[caseIdx] === 1);
+//     console.log(allCases.length)
+//
+//     return { header, data };
+// }
+
+export async function processProfiles(snpsInfo, numberOfProfiles, numberOfCaseControls, caseControlRatio, minAge, maxAge, minFollowUp, maxFollowUp, k, b) {
     // Validate SNP data
     if (!snpsInfo.length) {
         throw new Error('No SNPs available for profile generation.');
@@ -108,13 +167,15 @@ export async function processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge
 
     // Generate profiles data
     const data = [];
-    for (let i = 0; i < numberOfProfiles; i++) {
+    const index = 0;
+    let numberOfCases = 0;
+
+    while (numberOfCases < numberOfCaseControls * caseControlRatio || data.length < numberOfProfiles) {
         let prs = 0;
         const ageOfEntry = getRandomInt(minAge, maxAge);
         const ageOfExit = ageOfEntry + getRandomInt(minFollowUp, maxFollowUp);
         const onsetAge = Math.round(calculateTimeDiseaseOnset(ageOfEntry, prs, k, b));
         const isCase = onsetAge < ageOfExit ? 1 : 0;
-
         // Generate SNP dosages and calculate PRS
         const snpDosages = snpsInfo.map(({ weight, alleleDosageFrequency }) => {
             const dosage = generateAlleleDosage(alleleDosageFrequency);
@@ -125,7 +186,7 @@ export async function processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge
 
         // Create profile array
         const profileArray = [
-            i + 1, // Numerical ID
+            index + 1, // Numerical ID
             ageOfEntry,
             ageOfExit,
             Number(prs.toFixed(8)), // Rounded PRS
@@ -133,6 +194,8 @@ export async function processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge
             isCase ? onsetAge : null, // Use null instead of Infinity for missing values
             ...snpDosages
         ];
+
+        if (isCase) numberOfCases++;
 
         data.push(profileArray);
     }
