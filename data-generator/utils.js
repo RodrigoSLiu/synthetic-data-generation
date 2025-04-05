@@ -16,7 +16,7 @@ export function countOccurrences(snpIndex, profiles) {
     return counts;
 }
 
-export function dataToCSV(info) {
+export function dataToProfiles(info) {
     const { header, data } = info;
     const csvRows = [];
 
@@ -47,6 +47,11 @@ export function dataToCSV(info) {
     }
 
     return csvRows.join('\n');
+}
+
+export function dataToVCF(snpInfo, profiles) {
+    const vcfInfo = [];
+    const header = [];
 }
 
 export function downloadCSV(data, filename) {

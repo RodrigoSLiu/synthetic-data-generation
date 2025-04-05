@@ -3,15 +3,18 @@ import { main } from './data-generator/incidenceRate.js';
 import {
     createTable,
     parseCsv,
-    dataToCSV,
+    dataToProfiles,
+    dataToVCF,
     downloadCSV
 } from './syntheticDataGenerator.js';
 
 
-window.profileStore = {
+window.data = {
+    snpsInfo: null,
     generatedProfiles: null,
     matchedGroups: null
 };
+
 let incidenceRateFile = 'data/age_specific_breast_cancer_incidence_rates.csv';
 let globalIncidenceFile = 'data/incidence.csv';
 let profilesSliceSize = 100;
@@ -103,13 +106,15 @@ async function loadIncidenceChart(observedData, predictedData, htmlElement) {
 }
 
 document.getElementById('downloadProfiles').addEventListener('click', () => {
-    const csvData = dataToCSV(window.profileStore.generatedProfiles);
+    const profilesDataCsv = dataToVCF();
     downloadCSV(csvData, 'all_profiles');
 });
 
 document.getElementById('downloadCasesControls').addEventListener('click', () => {
-    const csvData = dataToCSV(window.profileStore.matchedGroups);
-    downloadCSV(csvData, 'cases_controls');
+    const profilesDataCsv = dataToProfiles();
+    const vcfDataCsv = dataToVCF(window.data.snpsInfo, window.data.generatedProfiles);
+    downloadCSV(profilesDataCsv, 'profiles');
+    downloadCSV(vcfDataCsv, 'vcf');
 });
 
 // try {
@@ -171,7 +176,9 @@ document.getElementById('retrieveButton').addEventListener('click', async () => 
             worker.postMessage({
                 pgsId: pgsIdInput,
                 build: buildInput,
-                numberOfProfiles: 10000,//document.getElementById('numberOfProfiles').value,
+                numberOfProfiles: 100000,//document.getElementById('numberOfProfiles').value,
+                //numberOfCaseControls: 10000,
+                //ratioOfCaseControls: 0.5,
                 minAge: 54,//document.getElementById('minAge').value,
                 maxAge: 63,//document.getElementById('maxAge').value,
                 minFollow: 5,//document.getElementById('followUp').value,
@@ -186,7 +193,7 @@ document.getElementById('retrieveButton').addEventListener('click', async () => 
                 }
 
                 // Store profiles globally
-                window.profileStore = {
+                window.data = {
                     snpsInfo: e.data.snpsInfo,
                     predictedIncidenceRate: e.data.predictedIncidenceRate,
                     generatedProfiles: e.data.generatedProfiles,

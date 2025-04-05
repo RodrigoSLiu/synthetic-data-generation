@@ -18,7 +18,8 @@ import {
     generateWeibullIncidenceCurve,
     processPRS,
     matchCasesWithControls,
-    dataToCSV,
+    dataToProfiles,
+    dataToVCF,
     downloadCSV
 } from './data-generator';
 
@@ -42,6 +43,7 @@ export {
     generateWeibullIncidenceCurve,
     processPRS,
     matchCasesWithControls,
-    dataToCSV,
+    dataToProfiles,
+    dataToVCF,
     downloadCSV
 };

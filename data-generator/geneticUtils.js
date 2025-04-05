@@ -192,7 +192,7 @@ export function matchCasesWithControls(
     entryVariable = 'ageOfEntry',
     exitVariable = 'ageOfExit',
     totalTarget = 10000,
-    caseControlRatio = 0.7
+    caseControlRatio = 0.5
 ) {
     // Get column indexes from header
     const caseIdx = header.indexOf(caseVariable);
@@ -205,33 +205,31 @@ export function matchCasesWithControls(
         if (idx === -1) throw new Error(`Missing required column: ${[caseVariable, entryVariable, exitVariable, 'id'][i]}`);
     });
 
-    // Split population using array indexes
+    // Split population
     const allCases = data.filter(row => row[caseIdx] === 1);
     const allControls = data.filter(row => row[caseIdx] === 0);
 
     // Calculate targets
-    const targetCases = Math.min(
-        Math.round(totalTarget * caseControlRatio),
-        allCases.length
-    );
+    const targetCases = Math.round(totalTarget * caseControlRatio);
     const targetControls = totalTarget - targetCases;
 
+    // Resample cases if needed
+    let selectedCases = allCases.length >= targetCases
+        ? shuffleArray(allCases).slice(0, targetCases)
+        : Array.from({ length: targetCases }, () => allCases[Math.floor(Math.random() * allCases.length)]);
+
     const matched = [];
-    const controlPool = [...allControls];
-    const selectedCases = shuffleArray(allCases).slice(0, targetCases);
+    let controlPool = [...allControls];
+    let totalControls = 0;
 
-    // Calculate controls per case
-    const minControlsPerCase = 1;
-    const baseControlsPerCase = Math.floor(targetControls / targetCases);
-    const extraControlProbability = (targetControls % targetCases) / targetCases;
-
+    // Initial matching pass
     selectedCases.forEach(caseRow => {
         let ageOffset = 0;
         let eligibleControls = [];
         const caseOnsetAge = caseRow[header.indexOf('ageOfOnset')];
 
         // Progressive age expansion
-        while (eligibleControls.length < minControlsPerCase && ageOffset <= 10) {
+        while (eligibleControls.length < 1 && ageOffset <= 10) {
             eligibleControls = controlPool.filter(controlRow => {
                 const controlEntry = controlRow[entryIdx];
                 const controlExit = controlRow[exitIdx];
@@ -241,30 +239,36 @@ export function matchCasesWithControls(
             ageOffset++;
         }
 
-        // Determine number of controls to assign
-        const numToAssign = Math.max(
-            minControlsPerCase,
-            Math.min(
-                baseControlsPerCase + (Math.random() < extraControlProbability ? 1 : 0),
-                eligibleControls.length
-            )
-        );
+        // Calculate controls needed per case
+        const remainingDeficit = targetControls - totalControls;
+        const baseNeeded = Math.floor(remainingDeficit / (targetCases - matched.length));
+        const needed = Math.max(1, Math.min(baseNeeded, eligibleControls.length));
 
-        // Select controls and remove from pool
-        const selectedControls = shuffleArray(eligibleControls).slice(0, numToAssign);
-        selectedControls.forEach(control => {
-            const index = controlPool.findIndex(c => c[idIdx] === control[idIdx]);
-            if (index > -1) controlPool.splice(index, 1);
-        });
+        // Select controls
+        const selectedControls = shuffleArray(eligibleControls).slice(0, needed);
+        controlPool = controlPool.filter(c => !selectedControls.some(sc => sc[idIdx] === c[idIdx]));
+        totalControls += selectedControls.length;
 
-        // Add to matched results (preserve array format)
         matched.push({
             case: caseRow,
             controls: selectedControls
         });
     });
 
-    const totalControls = matched.reduce((sum, m) => sum + m.controls.length, 0);
+    // Second pass: Resample controls if still short
+    if (totalControls < targetControls) {
+        const needed = targetControls - totalControls;
+        const resampledControls = Array.from({ length: needed }, () =>
+            allControls[Math.floor(Math.random() * allControls.length)]
+        );
+
+        // Distribute resampled controls evenly
+        resampledControls.forEach((control, i) => {
+            const targetCase = matched[i % matched.length];
+            targetCase.controls.push(control);
+        });
+        totalControls += needed;
+    }
 
     console.log(
         `Case-Control Matching Complete:\n` +

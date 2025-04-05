@@ -20,7 +20,6 @@ self.onmessage = async (e) => {
         // Processing
         const incidenceRate = await parseCsv(incidenceRateFile, { delimiter: ',' });
         const snpsInfo = await getSnpsInfo(pgsId, build);
-        console.log(snpsInfo);
         const trainingLP = processPRS(snpsInfo);
         const [k, b] = [3.6766813031638073, 2.2400292570926646 * Math.pow(10, -8)];
         const predictedIncidenceRate = generateWeibullIncidenceCurve(k, b, trainingLP, incidenceRate.length);

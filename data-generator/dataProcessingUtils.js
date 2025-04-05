@@ -65,7 +65,7 @@ export async function processSnpData(snpData) {
     }));
 
     // Add rsIDs and validate SNP data
-    snpInfo = await getRsIds(snpInfo);//, API_KEY);
+    //snpInfo = await getRsIds(snpInfo);//, API_KEY);
     console.log(snpInfo);
     if (!snpInfo.length) {
         throw new Error('No valid SNPs processed. Check the input PGS file or SNP lookup results.');
@@ -98,7 +98,7 @@ export async function processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge
     // Helper functions
     const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
-    const calculateTimeDiseaseOnset = (age, prs) => {
+    const calculateTimeDiseaseOnset = (age, prs, k, b) => {
         while (true) {
             const numerator = Math.log(Math.random());
             const val = Math.pow(age, k) - numerator / (b * Math.exp(prs));
@@ -112,7 +112,7 @@ export async function processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge
         let prs = 0;
         const ageOfEntry = getRandomInt(minAge, maxAge);
         const ageOfExit = ageOfEntry + getRandomInt(minFollowUp, maxFollowUp);
-        const onsetAge = Math.round(calculateTimeDiseaseOnset(ageOfEntry, prs));
+        const onsetAge = Math.round(calculateTimeDiseaseOnset(ageOfEntry, prs, k, b));
         const isCase = onsetAge < ageOfExit ? 1 : 0;
 
         // Generate SNP dosages and calculate PRS
