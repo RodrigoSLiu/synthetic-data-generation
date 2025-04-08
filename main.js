@@ -5,7 +5,7 @@ import {
     parseCsv,
     dataToProfiles,
     dataToVCF,
-    downloadCSV
+    downloadFile
 } from './syntheticDataGenerator.js';
 
 
@@ -106,15 +106,18 @@ async function loadIncidenceChart(observedData, predictedData, htmlElement) {
 }
 
 document.getElementById('downloadProfiles').addEventListener('click', () => {
-    const profilesDataCsv = dataToVCF();
-    downloadCSV(csvData, 'all_profiles');
+    const profilesDataCsv = dataToProfiles(window.data.generatedProfiles);
+    downloadFile(profilesDataCsv, 'all_profiles', 'csv');
 });
 
-document.getElementById('downloadCasesControls').addEventListener('click', () => {
-    const profilesDataCsv = dataToProfiles();
-    const vcfDataCsv = dataToVCF(window.data.snpsInfo, window.data.generatedProfiles);
-    downloadCSV(profilesDataCsv, 'profiles');
-    downloadCSV(vcfDataCsv, 'vcf');
+document.getElementById('downloadCaseControl').addEventListener('click', () => {
+    const caseControlDataCsv = dataToProfiles(window.data.matchedGroups);
+    downloadFile(caseControlDataCsv, 'case_control_profiles', 'csv');
+});
+
+document.getElementById('downloadVCF').addEventListener('click', () => {
+    const vcfDataCsv = dataToVCF(window.data.generatedProfiles);
+    downloadFile(vcfDataCsv, 'genetic_vcf', 'vcf');
 });
 
 // try {
@@ -178,7 +181,7 @@ document.getElementById('retrieveButton').addEventListener('click', async () => 
                 build: buildInput,
                 numberOfProfiles: 100000,//document.getElementById('numberOfProfiles').value,
                 numberOfCaseControls: 10000,
-                caseControlRatio: 0.5,
+                ratioOfCaseControls: 0.5,
                 minAge: 54,//document.getElementById('minAge').value,
                 maxAge: 63,//document.getElementById('maxAge').value,
                 minFollow: 5,//document.getElementById('followUp').value,

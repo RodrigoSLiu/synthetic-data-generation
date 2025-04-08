@@ -188,128 +188,303 @@ export async function getSnpsInfo(pgsId, build) {
 export function matchCasesWithControls(
     header,
     data,
-    caseVariable = 'case',
-    entryVariable = 'ageOfEntry',
-    exitVariable = 'ageOfExit',
     totalTarget = 10000,
     caseControlRatio = 0.5
 ) {
     // Get column indexes from header
-    const caseIdx = header.indexOf(caseVariable);
-    const entryIdx = header.indexOf(entryVariable);
-    const exitIdx = header.indexOf(exitVariable);
-    const idIdx = header.indexOf('id');
+    const caseIdx = header.indexOf('case');
     const onsetIdx = header.indexOf('ageOfOnset');
+    const entryIdx = header.indexOf('ageOfEntry');
+    const exitIdx = header.indexOf('ageOfExit');
+    const idIdx = header.indexOf('id');
 
     // Validate column indexes
-    [caseIdx, entryIdx, exitIdx, idIdx, onsetIdx].forEach((idx, i) => {
-        if (idx === -1) throw new Error(`Missing required column: ${[caseVariable, entryVariable, exitVariable, 'id', 'ageOfOnset'][i]}`);
+    [caseIdx, entryIdx, exitIdx, idIdx].forEach((idx) => {
+        if (idx === -1) throw new Error('Missing required column');
     });
 
-    // Split population (assuming exact case count exists)
+    // Split population
     const allCases = data.filter(row => row[caseIdx] === 1);
     const allControls = data.filter(row => row[caseIdx] === 0);
 
-    // Calculate control targets using your original logic
-    const targetCases = allCases.length; // Use all available cases
-    const targetControls = Math.min(
-        Math.round(totalTarget * (1 - caseControlRatio)),
-        allControls.length
-    );
+    // Pre-process controls into Map by entryAge for O(1) lookups
+    const controlsByEntryAge = new Map();
+    allControls.forEach(control => {
+        const entryAge = control[entryIdx];
 
-    const matched = [];
-    const controlPool = [...allControls];
-    const shuffledCases = shuffleArray(allCases);
-
-    // Your exact control distribution logic
-    const minControlsPerCase = 1;
-    const baseControlsPerCase = Math.floor(targetControls / targetCases);
-    const extraControlProbability = (targetControls % targetCases) / targetCases;
-
-    shuffledCases.forEach(caseRow => {
-        let ageOffset = 0;
-        let eligibleControls = [];
-        const caseOnsetAge = caseRow[onsetIdx];
-        console.log(`\n=== Matching case with onset age: ${caseOnsetAge} ===`);
-        eligibleControls = controlPool.filter(controlRow => {
-            const controlEntry = controlRow[entryIdx];
-            const controlExit = controlRow[exitIdx];
-            return Math.abs(controlEntry - caseOnsetAge) <= ageOffset &&
-                controlExit >= caseOnsetAge;
-        });
-        console.log(`Potential controls:`, eligibleControls.map(c => ({
-            id: c[idIdx],
-            entry: c[entryIdx],
-            exit: c[exitIdx]
-        })));
-        console.log("TESTTT")
-
-        // Progressive age expansion
-        while (eligibleControls.length < minControlsPerCase && ageOffset <= 10) {
-            eligibleControls = controlPool.filter(controlRow => {
-                const controlEntry = controlRow[entryIdx];
-                const controlExit = controlRow[exitIdx];
-                return Math.abs(controlEntry - caseOnsetAge) <= ageOffset &&
-                    controlExit >= caseOnsetAge;
-            });
-            console.log(`Age offset: ${ageOffset} (${caseOnsetAge - ageOffset} to ${caseOnsetAge + ageOffset})`);
-            console.log(`Potential controls:`, eligibleControls.map(c => ({
-                id: c[idIdx],
-                entry: c[entryIdx],
-                exit: c[exitIdx]
-            })));
-            ageOffset++;
+        if (!controlsByEntryAge.has(entryAge)) {
+            controlsByEntryAge.set(entryAge, []);
         }
 
-        console.log(`Final matched controls for case ${caseRow[idIdx]} (onset ${caseOnsetAge}):`,
-            eligibleControls.map(c => ({
-                id: c[idIdx],
-                entry: c[entryIdx],
-                exit: c[exitIdx],
-                ageDiff: Math.abs(c[entryIdx] - caseOnsetAge)
-            }))
-        );
+        controlsByEntryAge.get(entryAge).push(control);
+    });
 
-        // Your original control assignment logic
-        const numToAssign = Math.max(
-            minControlsPerCase,
-            Math.min(
-                baseControlsPerCase + (Math.random() < extraControlProbability ? 1 : 0),
-                eligibleControls.length
-            )
-        );
+    // Calculate targets
+    const targetCases = Math.round(totalTarget * caseControlRatio);
+    const targetControls = totalTarget - targetCases;
 
-        const selectedControls = shuffleArray(eligibleControls).slice(0, numToAssign);
+    // Resample cases using Fisher-Yates shuffle
+    const selectedCases = [];
+    const caseCopies = [...allCases];
+    for (let i = 0; i < Math.min(targetCases, caseCopies.length); i++) {
+        const randIndex = Math.floor(Math.random() * (caseCopies.length - i)) + i;
+        [caseCopies[i], caseCopies[randIndex]] = [caseCopies[randIndex], caseCopies[i]];
+        selectedCases.push(caseCopies[i]);
+    }
 
-        // Remove used controls from pool
-        selectedControls.forEach(control => {
-            const index = controlPool.findIndex(c => c[idIdx] === control[idIdx]);
-            if (index > -1) controlPool.splice(index, 1);
-        });
+    const matched = [];
+    let totalControls = 0;
+
+    // Main matching loop
+    for (const caseRow of selectedCases) {
+        const caseEntryAge = caseRow[entryIdx];
+        const eligibleControls = controlsByEntryAge.get(caseEntryAge) || [];
+
+        // Calculate needed controls
+        const remaining = targetControls - totalControls;
+        const remainingCases = selectedCases.length - matched.length;
+        const needed = Math.max(1, Math.min(
+            Math.ceil(remaining / remainingCases),
+            eligibleControls.length
+        ));
+
+        // Select random controls without modifying original array
+        const selected = selectRandomItems(eligibleControls, needed);
 
         matched.push({
             case: caseRow,
-            controls: selectedControls
+            controls: selected
         });
-    });
-
-    const totalControls = matched.reduce((sum, m) => sum + m.controls.length, 0);
+        totalControls += selected.length;
+    }
 
     console.log(
         `Case-Control Matching Complete:\n` +
-        `   - Cases matched: ${matched.length}\n` +
-        `   - Controls matched: ${totalControls} (available: ${allControls.length})\n` +
+        `   - Cases matched: ${matched.length} (target: ${targetCases})\n` +
+        `   - Controls matched: ${totalControls} (target: ${targetControls})\n` +
         `   - Matching ratio: 1:${(totalControls / matched.length).toFixed(2)}`
     );
 
     return matched;
 }
 
-function shuffleArray(array) {
-    const arr = [...array];
-    for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
+// Efficient random selection without full shuffle
+function selectRandomItems(array, count) {
+    const result = [];
+    const taken = new Set();
+
+    for (let i = 0; i < count && i < array.length; i++) {
+        let index;
+        do {
+            index = Math.floor(Math.random() * array.length);
+        } while (taken.has(index));
+
+        taken.add(index);
+        result.push(array[index]);
     }
-    return arr;
+    return result;
 }
+
+// export function matchCasesWithControls(
+//     header,
+//     data,
+//     totalTarget = 10000,
+//     caseControlRatio = 0.5
+// ) {
+//     // Get column indexes from header
+//     const caseIdx = header.indexOf('case');
+//     const onsetIdx = header.indexOf('ageOfOnset');
+//     const entryIdx = header.indexOf('ageOfEntry');
+//     const exitIdx = header.indexOf('ageOfExit');
+//     const idIdx = header.indexOf('id');
+//
+//     // Validate column indexes
+//     [caseIdx, entryIdx, exitIdx, idIdx].forEach((idx, i) => {
+//         if (idx === -1) throw new Error('Missing required column');
+//     });
+//
+//     // Split population
+//     const allCases = data.filter(row => row[caseIdx] === 1);
+//     const allControls = data.filter(row => row[caseIdx] === 0);
+//
+//     // Calculate targets
+//     const targetCases = Math.round(totalTarget * caseControlRatio);
+//     const targetControls = totalTarget - targetCases;
+//
+//     // Resample cases if needed
+//     let selectedCases = allCases.length >= targetCases
+//         ? shuffleArray(allCases).slice(0, targetCases)
+//         : Array.from({ length: targetCases }, () => allCases[Math.floor(Math.random() * allCases.length)]);
+//
+//     const matched = [];
+//     let controlPool = [...allControls];
+//     let totalControls = 0;
+//
+//     // Initial matching pass
+//     selectedCases.forEach(caseRow => {
+//         let ageOffset = 0;
+//         let eligibleControls = [];
+//         const caseOnsetAge = caseRow[header.indexOf(onsetIdx)];
+//
+//         // // Progressive age expansion
+//         // while (eligibleControls.length < 1 && ageOffset <= 10) {
+//         //     eligibleControls = controlPool.filter(controlRow => {
+//         //         const controlEntry = controlRow[entryIdx];
+//         //         const controlExit = controlRow[exitIdx];
+//         //         return Math.abs(controlEntry - caseOnsetAge) <= ageOffset &&
+//         //             controlExit >= caseOnsetAge;
+//         //     });
+//         //     ageOffset++;
+//         // }
+//
+//         eligibleControls = controlPool.filter(controlRow => {
+//             const timePass = caseRow[onsetIdx] - caseRow[entryIdx];
+//             const controlEntry = controlRow[entryIdx];
+//
+//             return controlEntry + timePass === caseRow[onsetIdx];
+//         });
+//
+//         console.log('test', caseRow[onsetIdx], eligibleControls);
+//
+//
+//         // Calculate controls needed per case
+//         const remainingDeficit = targetControls - totalControls;
+//         const baseNeeded = Math.floor(remainingDeficit / (targetCases - matched.length));
+//         const needed = Math.max(1, Math.min(baseNeeded, eligibleControls.length));
+//
+//         // Select controls
+//         const selectedControls = shuffleArray(eligibleControls).slice(0, needed);
+//         controlPool = controlPool.filter(c => !selectedControls.some(sc => sc[idIdx] === c[idIdx]));
+//         totalControls += selectedControls.length;
+//
+//         matched.push({
+//             case: caseRow,
+//             controls: selectedControls
+//         });
+//     });
+//
+//     console.log(
+//         `Case-Control Matching Complete:\n` +
+//         `   - Cases matched: ${matched.length} (target: ${targetCases})\n` +
+//         `   - Controls matched: ${totalControls} (target: ${targetControls})\n` +
+//         `   - Matching ratio: 1:${(totalControls / matched.length).toFixed(2)}`
+//     );
+//
+//     return matched;
+// }
+//
+// function shuffleArray(array) {
+//     for (let i = array.length - 1; i > 0; i--) {
+//         const j = Math.floor(Math.random() * (i + 1));
+//         [array[i], array[j]] = [array[j], array[i]];
+//     }
+//
+//     return array;
+// }
+
+// export function matchCasesWithControls(
+//     header,
+//     data,
+//     totalTarget = 10000,
+//     caseControlRatio = 0.5
+// ) {
+//     // Get column indexes from header
+//     const caseIdx = header.indexOf('case');
+//     const onsetIdx = header.indexOf('ageOfOnset');
+//     const entryIdx = header.indexOf('ageOfEntry');
+//     const exitIdx = header.indexOf('ageOfExit');
+//     const idIdx = header.indexOf('id');
+//
+//     // Validate column indexes
+//     [caseIdx, entryIdx, exitIdx, idIdx].forEach((idx, i) => {
+//         if (idx === -1) throw new Error('Missing required column');
+//     });
+//
+//     // Split population
+//     const allCases = data.filter(row => row[caseIdx] === 1);
+//     const allControls = data.filter(row => row[caseIdx] === 0);
+//
+//     // Calculate targets
+//     const targetCases = Math.round(totalTarget * caseControlRatio);
+//     const targetControls = totalTarget - targetCases;
+//
+//     // Resample cases if needed
+//     let selectedCases = allCases.length >= targetCases
+//         ? shuffleArray(allCases).slice(0, targetCases)
+//         : Array.from({ length: targetCases }, () => allCases[Math.floor(Math.random() * allCases.length)]);
+//
+//     const matched = [];
+//     let controlPool = [...allControls];
+//     let totalControls = 0;
+//
+//
+//     for (let i = 54; i < 64; i++) {
+//         const test = controlPool.filter(row => row[entryIdx] === i);
+//         console.log('control', i, test);
+//     }
+//     // Initial matching pass
+//     selectedCases.forEach(caseRow => {
+//         let ageOffset = 0;
+//         let eligibleControls = [];
+//         const caseOnsetAge = caseRow[header.indexOf(onsetIdx)];
+//
+//         // Progressive age expansion
+//         while (eligibleControls.length < 1 && ageOffset <= 10) {
+//             eligibleControls = controlPool.filter(controlRow => {
+//                 const controlEntry = controlRow[entryIdx];
+//                 const controlExit = controlRow[exitIdx];
+//                 return Math.abs(controlEntry - caseOnsetAge) <= ageOffset &&
+//                     controlExit >= caseOnsetAge;
+//             });
+//             ageOffset++;
+//         }
+//
+//         // Calculate controls needed per case
+//         const remainingDeficit = targetControls - totalControls;
+//         const baseNeeded = Math.floor(remainingDeficit / (targetCases - matched.length));
+//         const needed = Math.max(1, Math.min(baseNeeded, eligibleControls.length));
+//
+//         // Select controls
+//         const selectedControls = shuffleArray(eligibleControls).slice(0, needed);
+//         controlPool = controlPool.filter(c => !selectedControls.some(sc => sc[idIdx] === c[idIdx]));
+//         totalControls += selectedControls.length;
+//
+//         matched.push({
+//             case: caseRow,
+//             controls: selectedControls
+//         });
+//     });
+//
+//     // Second pass: Resample controls if still short
+//     if (totalControls < targetControls) {
+//         const needed = targetControls - totalControls;
+//         const resampledControls = Array.from({ length: needed }, () =>
+//             allControls[Math.floor(Math.random() * allControls.length)]
+//         );
+//
+//         // Distribute resampled controls evenly
+//         resampledControls.forEach((control, i) => {
+//             const targetCase = matched[i % matched.length];
+//             targetCase.controls.push(control);
+//         });
+//         totalControls += needed;
+//     }
+//
+//     console.log(
+//         `Case-Control Matching Complete:\n` +
+//         `   - Cases matched: ${matched.length} (target: ${targetCases})\n` +
+//         `   - Controls matched: ${totalControls} (target: ${targetControls})\n` +
+//         `   - Matching ratio: 1:${(totalControls / matched.length).toFixed(2)}`
+//     );
+//
+//     return matched;
+// }
+//
+// function shuffleArray(array) {
+//     for (let i = array.length - 1; i > 0; i--) {
+//         const j = Math.floor(Math.random() * (i + 1));
+//         [array[i], array[j]] = [array[j], array[i]];
+//     }
+//
+//     return array;
+// }

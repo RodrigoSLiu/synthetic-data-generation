@@ -20,7 +20,7 @@ import {
     matchCasesWithControls,
     dataToProfiles,
     dataToVCF,
-    downloadCSV
+    downloadFile
 } from './data-generator';
 
 export {
@@ -45,5 +45,5 @@ export {
     matchCasesWithControls,
     dataToProfiles,
     dataToVCF,
-    downloadCSV
+    downloadFile
 };

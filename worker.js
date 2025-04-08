@@ -6,7 +6,7 @@ importScripts(
 
 self.onmessage = async (e) => {
     const {
-        pgsId, build, numberOfProfiles, numberOfCaseControls, caseControlRatio, minAge, maxAge, minFollow, maxFollow,
+        pgsId, build, numberOfProfiles, numberOfCaseControls, ratioOfCaseControls, minAge, maxAge, minFollow, maxFollow,
         incidenceRateFile, globalIncidenceFile
     } = e.data;
 
@@ -26,7 +26,7 @@ self.onmessage = async (e) => {
         const {
             header,
             data
-        } = await processProfiles(snpsInfo, numberOfProfiles, numberOfCaseControls, caseControlRatio, minAge, maxAge, minFollow, maxFollow, k, b);
+        } = await processProfiles(snpsInfo, numberOfProfiles, numberOfCaseControls, ratioOfCaseControls, minAge, maxAge, minFollow, maxFollow, k, b);
 
         const matchedProfiles = matchCasesWithControls(header, data);
         const idIdx = header.indexOf('id');
