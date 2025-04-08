@@ -231,6 +231,18 @@ export function matchCasesWithControls(
         let eligibleControls = [];
         const caseOnsetAge = caseRow[onsetIdx];
         console.log(`\n=== Matching case with onset age: ${caseOnsetAge} ===`);
+        eligibleControls = controlPool.filter(controlRow => {
+            const controlEntry = controlRow[entryIdx];
+            const controlExit = controlRow[exitIdx];
+            return Math.abs(controlEntry - caseOnsetAge) <= ageOffset &&
+                controlExit >= caseOnsetAge;
+        });
+        console.log(`Potential controls:`, eligibleControls.map(c => ({
+            id: c[idIdx],
+            entry: c[entryIdx],
+            exit: c[exitIdx]
+        })));
+        console.log("TESTTT")
 
         // Progressive age expansion
         while (eligibleControls.length < minControlsPerCase && ageOffset <= 10) {
