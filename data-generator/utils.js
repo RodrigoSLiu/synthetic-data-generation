@@ -120,14 +120,9 @@ export function dataToProfiles(info) {
 
 export function dataToVCF(info) {
     const { header, data } = info;
-    const idIdx = header.indexOf('id');
-    const entryIdx = header.indexOf('ageOfEntry');
-    const exitIdx = header.indexOf('ageOfExit');
-    const prsIdx = header.indexOf('prs');
-    const caseIdx = header.indexOf('case');
     const ageOfOnsetIdx = header.indexOf('ageOfOnset');
     const variants = header.slice(ageOfOnsetIdx + 1);
-    const profilesId = data.map(row => row[0]);
+    const profilesId = data.map(row => 'NA' + String(row[0]).padStart(7, '0')); // Convert to NA0000000, NA0000001, etc.
     const profilesGenetic = data.map(row => row.slice(ageOfOnsetIdx + 1));
     const headerLines = [
         '##fileformat=VCFv4.2',
