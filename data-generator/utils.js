@@ -49,75 +49,6 @@ export function dataToProfiles(info) {
     return csvRows.join('\n');
 }
 
-// export function dataToVCF(info) {
-//     console.log(info);
-//
-//     const { header, data } = info;
-//     const vcfLines = [];
-//
-//     const idIdx = header.indexOf('id');
-//     const entryIdx = header.indexOf('ageOfEntry');
-//     const exitIdx = header.indexOf('ageOfExit');
-//     const prsIdx = header.indexOf('prs');
-//     const caseIdx = header.indexOf('case');
-//     const ageOfOnsetIdx = header.indexOf('ageOfOnset');
-//     const variants = header.slice(ageOfOnsetIdx + 1);
-//     const profilesId = data.map(row => row[0]);
-//     const profilesGenetic = data.map(row => row.slice(ageOfOnsetIdx + 1));
-//     const headerColumns = [
-//         '#CHROM', 'POS', 'ID', 'REF', 'ALT',
-//         'QUAL', 'FILTER', 'INFO', 'FORMAT',
-//         ...profilesId
-//     ];
-//
-//     vcfLines.push('##fileformat=VCFv4.2');
-//     vcfLines.push('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">');
-//     vcfLines.push(headerColumns.join('\t'));
-//
-//     for (let variantIdx = 0; variantIdx < variants.length; variantIdx++) {
-//         const [chrom, pos_ref_alt] = variants[variantIdx].split(':', 2);        // Split CHROM from POS:REF:ALT
-//         const [pos, ref_alt] = pos_ref_alt.split(':', 2);          // Split POS from REF:ALT
-//         const [ref, alt] = ref_alt.split(':', 2);                  // Split REF from ALT
-//         const variantVcfId = '.';
-//         const qual = '.';
-//         const filterVal = 'PASS';
-//         const info = '.';
-//         const formatField = 'GT';
-//         const vcfLineVariant = [chrom, pos, variantVcfId, ref, alt, qual, filterVal, info, formatField];
-//         const genotypeProfiles = [];
-//         let vcfLine;
-//
-//         for (let profileIdx = 0; profileIdx < profilesId.length; profileIdx++) {
-//             const alleleDosage = profilesGenetic[profileIdx][variantIdx];
-//
-//             let genotypeCall = [];
-//
-//             if (isNaN(alleleDosage)) {
-//                 genotypeCall = './.';
-//             }
-//             else if (alleleDosage === 0) {
-//                 genotypeCall = '0/0';
-//             }
-//             else if (alleleDosage === 1) {
-//                 genotypeCall = '0/1';
-//             }
-//             else if (alleleDosage === 2) {
-//                 genotypeCall = '1/1';
-//             }
-//             else {
-//                 genotypeCall = './.'; // Unknown value
-//             }
-//
-//             genotypeProfiles.push(genotypeCall);
-//         }
-//
-//         vcfLine = $''
-//
-//         vcfLines.push(vcfLineVariant.join('\t'));
-//
-//     }
-// }
-
 export function dataToVCF(info) {
     const { header, data } = info;
     const ageOfOnsetIdx = header.indexOf('ageOfOnset');
@@ -169,33 +100,6 @@ export function dataToVCF(info) {
     // Return complete VCF file content
     return vcfLines.join('\n');
 }
-
-// export function downloadCSV(data, filename) {
-//     try {
-//         // Create CSV blob directly
-//         const blob = new Blob([data], {
-//             type: 'text/csv;charset=utf-8;'
-//         });
-//
-//         // Create download link
-//         const url = URL.createObjectURL(blob);
-//         const a = document.createElement('a');
-//         a.href = url;
-//         a.download = `${filename}.csv`;
-//         document.body.appendChild(a);
-//         a.click();
-//
-//         // Cleanup
-//         setTimeout(() => {
-//             document.body.removeChild(a);
-//             URL.revokeObjectURL(url);
-//         }, 100);
-//
-//     } catch (error) {
-//         console.error('Download error:', error);
-//         alert('Error generating download: ' + error.message);
-//     }
-// }
 
 export function downloadFile(data, filename, format = 'csv') {
     // Determine MIME type and extension based on format

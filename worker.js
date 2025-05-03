@@ -6,8 +6,18 @@ importScripts(
 
 self.onmessage = async (e) => {
     const {
-        pgsId, build, numberOfProfiles, numberOfCaseControls, ratioOfCaseControls, minAge, maxAge, minFollow, maxFollow,
-        incidenceRateFile, globalIncidenceFile
+        pgsId,
+        build,
+        numberOfProfiles,
+        caseControlMatch,
+        numberOfCaseControls,
+        ratioOfCaseControls,
+        minAge,
+        maxAge,
+        minFollow,
+        maxFollow,
+        incidenceRateFile,
+        pgsModelFile
     } = e.data;
 
     try {
@@ -19,16 +29,27 @@ self.onmessage = async (e) => {
 
         // Processing
         const incidenceRate = await parseCsv(incidenceRateFile, { delimiter: ',' });
-        const snpsInfo = await getSnpsInfo(pgsId, build);
+        //const snpsInfo = await getSnpsInfo(pgsId, build); //PRODUCTION
+        const snpsInfo = await getSnpsInfo(pgsId, build, pgsModelFile); //TODO
         const trainingLP = processPRS(snpsInfo);
         const [k, b] = [3.6766813031638073, 2.2400292570926646 * Math.pow(10, -8)];
         const predictedIncidenceRate = generateWeibullIncidenceCurve(k, b, trainingLP, incidenceRate.length);
         const {
             header,
             data
-        } = await processProfiles(snpsInfo, numberOfProfiles, numberOfCaseControls, ratioOfCaseControls, minAge, maxAge, minFollow, maxFollow, k, b);
+        } = await processProfiles(snpsInfo, numberOfProfiles, caseControlMatch, numberOfCaseControls, ratioOfCaseControls, minAge, maxAge, minFollow, maxFollow, k, b);
 
-        const matchedProfiles = matchCasesWithControls(header, data);
+        if (!caseControlMatch) {
+            self.postMessage({
+                snpsInfo,
+                predictedIncidenceRate,
+                generatedProfiles: { header, data }
+            });
+
+            return;
+        }
+
+        const matchedProfiles = matchCasesWithControls(header, data, 50000, 0.5);
         const idIdx = header.indexOf('id');
         const ageOfEntryIdx = header.indexOf('ageOfEntry');
         const ageOfExitIdx = header.indexOf('ageOfExit');

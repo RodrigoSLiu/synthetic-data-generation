@@ -10,8 +10,8 @@ export function processPRS(snpsInfo) {
     }
 
     snpsInfo.forEach((snp, index) => {
-        if (!snp.weight || !snp.alleleDosageFrequency) {
-            throw new Error(`Missing weight or allele dosage frequency for SNP at index ${index}`);
+        if (!snp.weight) {
+            throw new Error(`Missing weight for SNP at index ${index}`);
         }
     });
 
@@ -21,9 +21,10 @@ export function processPRS(snpsInfo) {
     // Generate profiles
     for (let i = 0; i < populationSize; i++) {
         let prs = 0;
-        const allelesDosage = snpsInfo.map(({ weight, alleleDosageFrequency }) => {
-            const dosage = generateAlleleDosage(alleleDosageFrequency);
+        const allelesDosage = snpsInfo.map(({ weight, maf }) => {
+            const dosage = generateAlleleDosage(maf);
             prs += weight * dosage;
+
             return dosage;
         });
 
@@ -34,14 +35,6 @@ export function processPRS(snpsInfo) {
 }
 
 export async function processSnpData(snpData) {
-    // Calculate Hardy-Weinberg equilibrium frequencies
-    const calculateHWE = (maf) => {
-        const recessive = maf ** 2;
-        const dominant = (1 - maf) ** 2;
-
-        return [dominant, 1 - dominant - recessive, recessive];
-    };
-
     // Validate and extract relevant indices from headers
     const { headers, values } = snpData;
     const indices = {
@@ -72,19 +65,20 @@ export async function processSnpData(snpData) {
     }
 
     // Calculate allele dosage frequencies for SNPs with valid rsIDs
+    let totalMaf = 0;
     snpInfo.forEach(snp => {
         if (!snp.rsID) {
             console.warn('Missing SNP ID for:', snp);
 
             snp.rsID = snp.id;
         }
-        snp.alleleDosageFrequency = calculateHWE(snp.maf);
+        totalMaf += parseFloat(snp.maf);
     });
-
+    console.log('TOTAL MAF: ', totalMaf);
     return snpInfo;
 }
 
-export async function processProfiles(snpsInfo, numberOfProfiles, numberOfCaseControls, ratioOfCaseControls, minAge, maxAge, minFollowUp, maxFollowUp, k, b) {
+export async function processProfiles(snpsInfo, numberOfProfiles, caseControlmatch, numberOfCaseControls, ratioOfCaseControls, minAge, maxAge, minFollowUp, maxFollowUp, k, b) {
     // Validate SNP data
     if (!snpsInfo.length) {
         throw new Error('No SNPs available for profile generation.');
@@ -97,20 +91,29 @@ export async function processProfiles(snpsInfo, numberOfProfiles, numberOfCaseCo
 
     // Helper functions
     const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-
+    let avgU = 0;
     const calculateTimeDiseaseOnset = (age, prs, k, b) => {
-        while (true) {
-            const numerator = Math.log(Math.random());
-            const val = Math.pow(age, k) - numerator / (b * Math.exp(prs));
-            if (val >= 0) return Math.pow(val, 1 / k);
-        }
+        const r = Math.random();
+        const numerator = Math.log(r);
+        const val = Math.pow(age, k) - numerator / (b * Math.exp(prs));
+        avgU += r;
+        return Math.pow(val, 1 / k);
     };
 
     // Generate profiles data
     const data = [];
     let numberOfCases = 0;
 
-    while (numberOfCases < numberOfCaseControls * ratioOfCaseControls || data.length < numberOfProfiles) {
+    // Stats
+    let maxPrs = 0;
+    let maxIsCase = false;
+    let minPrs = 0;
+    let minIsCase = false;
+    let caseAvg = 0;
+    let controlAvg = 0;
+    let maxDosage = { 0: 0, 1: 0, 2: 0 };
+
+    while ((caseControlmatch && numberOfCases < numberOfCaseControls * ratioOfCaseControls) || data.length < numberOfProfiles) {
         let prs = 0;
         const ageOfEntry = getRandomInt(minAge, maxAge);
         const ageOfExit = ageOfEntry + getRandomInt(minFollowUp, maxFollowUp);
@@ -118,9 +121,11 @@ export async function processProfiles(snpsInfo, numberOfProfiles, numberOfCaseCo
         const isCase = onsetAge < ageOfExit ? 1 : 0;
 
         // Generate SNP dosages and calculate PRS
-        const snpDosages = snpsInfo.map(({ weight, alleleDosageFrequency }) => {
-            const dosage = generateAlleleDosage(alleleDosageFrequency);
+        const snpDosages = snpsInfo.map(({ weight, maf }) => {
+            const [dosage, domHom, het, recHom] = generateAlleleDosage(maf);
             prs += weight * dosage;
+
+            maxDosage[dosage] += 1;
 
             return dosage;
         });
@@ -130,16 +135,44 @@ export async function processProfiles(snpsInfo, numberOfProfiles, numberOfCaseCo
             data.length, // Numerical ID
             ageOfEntry,
             ageOfExit,
-            Number(prs.toFixed(8)), // Rounded PRS
+            prs, // Rounded PRS
             isCase,
-            isCase ? onsetAge : null, // Use null instead of Infinity for missing values
+            onsetAge, // Use null instead of Infinity for missing values
             ...snpDosages
         ];
 
-        if (isCase === 1) numberOfCases++;
+        if (isCase === 1) {
+            numberOfCases++;
+            caseAvg += prs;
+        }
+        else if (isCase === 0) {
+            controlAvg += prs;
+        }
+
+        if (prs > maxPrs) {
+            maxPrs += prs;
+            maxIsCase = isCase;
+        }
+        else if (prs < minPrs) {
+            minPrs += prs;
+            minIsCase = isCase;
+        }
 
         data.push(profileArray);
     }
+
+    console.log(
+        `Profiles creation complete:\n` +
+        `   - Average U: ${avgU / numberOfProfiles}\n` +
+        `   - Max Dosage: ${maxDosage[0] + maxDosage[1] + maxDosage[2]}: ${maxDosage[0]} \n1: ${maxDosage[1]} \n2: ${maxDosage[2]}\n` +
+        `   - Cases created: ${numberOfCases}\n` +
+        `   - Controls created: ${data.length - numberOfCases}\n` +
+        `   - Case to Control ratio: ${(numberOfCases / (data.length - numberOfCases)).toFixed(2) * 100}%\n` +
+        `   - Max PRS: ${maxPrs.toFixed(4)} (Is case: ${maxIsCase})\n` +
+        `   - Min PRS: ${minPrs.toFixed(4)} (Is case: ${minIsCase})\n` +
+        `   - Case Average PRS: ${(caseAvg / numberOfCases).toFixed(4)}\n` +
+        `   - Control Average PRS: ${(controlAvg / (data.length - numberOfCases)).toFixed(4)}\n`
+    );
 
     return { header, data };
 }

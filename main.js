@@ -15,13 +15,15 @@ window.data = {
     matchedGroups: null
 };
 
-let incidenceRateFile = 'data/age_specific_breast_cancer_incidence_rates.csv';
-let globalIncidenceFile = 'data/incidence.csv';
+
 let profilesSliceSize = 100;
 let dependeciesUrl = [
     'https://cdnjs.cloudflare.com/ajax/libs/pako/1.0.11/pako.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/localforage/1.9.0/localforage.min.js'
 ];
+let incidenceRateFile = 'data/age_specific_breast_cancer_incidence_rates.csv';
+let globalIncidenceFile = 'data/incidence.csv'; //UNFINISHED
+let pgsModelFile = 'data/pgs_model_test.txt';
 let sliceMaxSize = 100000;
 
 (async () => {
@@ -169,6 +171,7 @@ document.getElementById('retrieveButton').addEventListener('click', async () => 
     const loadingScreen = document.getElementById('loadingScreen');
     const pgsIdInput = document.getElementById('pgsId').value.trim();
     const buildInput = document.querySelector('input[name="build"]:checked').value;
+    const caseControlMatch = document.getElementById('caseControlMatch').checked;
 
     loadingScreen.style.display = 'flex';
 
@@ -180,14 +183,15 @@ document.getElementById('retrieveButton').addEventListener('click', async () => 
                 pgsId: pgsIdInput,
                 build: buildInput,
                 numberOfProfiles: 100000,//document.getElementById('numberOfProfiles').value,
-                numberOfCaseControls: 10000,
+                caseControlMatch: caseControlMatch,
+                numberOfCaseControls: 20000,
                 ratioOfCaseControls: 0.5,
-                minAge: 54,//document.getElementById('minAge').value,
-                maxAge: 63,//document.getElementById('maxAge').value,
-                minFollow: 5,//document.getElementById('followUp').value,
-                maxFollow: 13,//document.getElementById('followUp').value,
-                incidenceRateFile: 'data/age_specific_breast_cancer_incidence_rates.csv',
-                globalIncidenceFile: 'data/incidence.csv'
+                minAge: 30,//document.getElementById('minAge').value,
+                maxAge: 70,//document.getElementById('maxAge').value,
+                minFollow: 15,//document.getElementById('followUp').value,
+                maxFollow: 30,//document.getElementById('followUp').value,
+                incidenceRateFile: incidenceRateFile,
+                pgsModelFile: pgsModelFile
             });
 
             worker.onmessage = async (e) => {
@@ -204,8 +208,11 @@ document.getElementById('retrieveButton').addEventListener('click', async () => 
                     matchedGroups: e.data.matchedGroups
                 };
 
-                draw(e.data.snpsInfo, e.data.matchedGroups, 100);
-                await main(globalIncidenceFile);
+                if (!caseControlMatch) draw(e.data.snpsInfo, e.data.generatedProfiles, 100);
+                else draw(e.data.snpsInfo, e.data.matchedGroups, 100);
+
+                //TODO
+                //await main(globalIncidenceFile);
                 await loadIncidenceChart(
                     await parseCsv(incidenceRateFile),
                     e.data.predictedIncidenceRate,

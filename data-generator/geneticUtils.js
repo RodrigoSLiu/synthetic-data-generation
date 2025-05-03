@@ -88,10 +88,19 @@ export async function getChromosomeAndPosition(rsIDs, genomeBuild, apiKey) {
     return results;
 }
 
-export function generateAlleleDosage([_, heterozygousFreq, recessiveHomozygousFreq]) {
-    const r = Math.random();
+export function generateAlleleDosage(maf) {
+    // Calculate Hardy-Weinberg equilibrium frequencies
+    const calculateHWE = (maf) => {
+        const recessive = maf ** 2;
+        const dominant = (1 - maf) ** 2;
 
-    return r < recessiveHomozygousFreq ? 2 : (r < recessiveHomozygousFreq + heterozygousFreq ? 1 : 0);
+        return [dominant, 1 - dominant - recessive, recessive];
+    };
+
+    const r = Math.random();
+    const [domHom, het, recHom] = calculateHWE(maf);
+
+    return [r < recHom ? 2 : (domHom > r < recHom ? 1 : 0), domHom, het, recHom];
 }
 
 export function generateWeibullIncidenceCurve(k, b, linearPredictors, maxAge) {
@@ -264,7 +273,7 @@ export function matchCasesWithControls(
         `   - Controls matched: ${totalControls} (target: ${targetControls})\n` +
         `   - Matching ratio: 1:${(totalControls / matched.length).toFixed(2)}`
     );
-
+    console.log(matched[0]['controls']);
     return matched;
 }
 
