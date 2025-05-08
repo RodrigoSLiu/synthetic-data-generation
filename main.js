@@ -122,47 +122,7 @@ document.getElementById('downloadVCF').addEventListener('click', () => {
     downloadFile(vcfDataCsv, 'genetic_vcf', 'vcf');
 });
 
-// try {
-//     // Generate profiles
-//     const incidenceRate = await parseCsv(incidenceRateFile);
-//
-//     const sliceMaxSize = 100000;
-//     const [expLinearPredictors, generatedProfiles] = await processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge, followUpPeriod);
-//     const slicedEntryAges = generatedProfiles.slice(0, sliceMaxSize).map((profile) => profile.ageOfEntry);
-//     const slicedLinearPredictors = generatedProfiles.slice(0, sliceMaxSize).map((profile) => profile.prs);
-//
-//     // Calculate Weibull parameters and distribute case/control data
-//     const timePoints = [30, 50];
-//     const probabilities = timePoints.map(value => cdf(incidenceRate, value, 'rate'));
-//     const [optimized_k, optimized_b] = estimateWeibullParameters(timePoints, probabilities, slicedEntryAges, slicedLinearPredictors);
-//     distributeCaseControl(generatedProfiles, optimized_k, optimized_b);
-//
-//     // Calculate rates
-//     const isOnset = generatedProfiles.slice(0, sliceMaxSize).map((profile) => profile.case);
-//
-//     const rates = timePoints.map(t => {
-//         let count = isOnset.filter(onset => onset === true).length;
-//         return count / isOnset.length;
-//     });
-//
-//     console.log('Expected rates: ', probabilities.map(value => (value * 100000) / sliceMaxSize), 'Obtained rates', rates);
-//
-//     // SNP Occurrence
-//     const maxNumberOfProfiles = 10000;
-//     const rsIds = snpsInfo.map(snp => snp.rsID);
-//     const randomIndex = Object.keys(rsIds)[Math.floor(Math.random() * Object.keys(rsIds).length)];
-//     const slicedProfiles = generatedProfiles.slice(0, maxNumberOfProfiles);
-//     const occurrence = countOccurrences(randomIndex, generatedProfiles);
-//
-//     // Render histograms
-//     const randomSnp = snpsInfo.filter(snp => snp.rsID === rsIds[randomIndex]);
-//     renderSNPHistograms(randomSnp, occurrence, numberOfProfiles, maxNumberOfProfiles);
-//
-//     // Display SNP and Table
-//     displaySNP(rsIds[randomIndex]);
-//     createTable(slicedProfiles);
-//
-// }
+
 /* TODO: Currently we only get rsId from eutils;
 *    If there is no MAF get maf from eutils with rsId
 *    If there is MAF, maybe get it from eutils too, ask Jeya
@@ -173,6 +133,12 @@ document.getElementById('retrieveButton').addEventListener('click', async () => 
     const buildInput = document.querySelector('input[name="build"]:checked').value;
     const caseControlMatch = document.getElementById('caseControlMatch').checked;
 
+    const allChunks = [];
+    let receivedChunks = 0;
+    let expectedChunks = 0;
+    let header = null;
+
+
     loadingScreen.style.display = 'flex';
 
     try {
@@ -182,7 +148,7 @@ document.getElementById('retrieveButton').addEventListener('click', async () => 
             worker.postMessage({
                 pgsId: pgsIdInput,
                 build: buildInput,
-                numberOfProfiles: 100000,//document.getElementById('numberOfProfiles').value,
+                numberOfProfiles: 1000000,//document.getElementById('numberOfProfiles').value,
                 caseControlMatch: caseControlMatch,
                 numberOfCaseControls: 20000,
                 ratioOfCaseControls: 0.5,
@@ -195,32 +161,37 @@ document.getElementById('retrieveButton').addEventListener('click', async () => 
             });
 
             worker.onmessage = async (e) => {
-                if (e.data.error) {
-                    throw new Error(e.data.error);
+                const { type } = e.data;
+
+                if (type === 'meta') {
+                    header = e.data.header;
+                    expectedChunks = e.data.totalChunks;
+                    window.data.snpsInfo = e.data.snpsInfo;
+                    window.data.predictedIncidenceRate = e.data.predictedIncidenceRate;
                 }
+                else if (type === 'chunk') {
+                    allChunks[e.data.index] = e.data.chunk;
+                    receivedChunks++;
 
-                // Store profiles globally
-                window.data = {
-                    snpsInfo: e.data.snpsInfo,
-                    predictedIncidenceRate: e.data.predictedIncidenceRate,
-                    generatedProfiles: e.data.generatedProfiles,
-                    matchedProfiles: e.data.matchedProfiles,
-                    matchedGroups: e.data.matchedGroups
-                };
+                    if (receivedChunks === expectedChunks) {
+                        const fullData = allChunks.flat();
+                        window.data.generatedProfiles = { header, data: fullData };
 
-                if (!caseControlMatch) draw(e.data.snpsInfo, e.data.generatedProfiles, 100);
-                else draw(e.data.snpsInfo, e.data.matchedGroups, 100);
-
-                //TODO
-                //await main(globalIncidenceFile);
-                await loadIncidenceChart(
-                    await parseCsv(incidenceRateFile),
-                    e.data.predictedIncidenceRate,
-                    'expectedIncidenceChart'
-                );
-
-                worker.terminate();
-                loadingScreen.style.display = 'none';
+                        const useMatched = document.getElementById('caseControlMatch').checked;
+                        if (!useMatched) draw(header, { header, data: fullData }, 100);
+                    }
+                }
+                else if (type === 'matchedGroups') {
+                    window.data.matchedGroups = e.data.matchedGroups;
+                    draw(null, { header: null, data: window.data.matchedGroups }, 100);
+                }
+                else if (type === 'done') {
+                    document.getElementById('loadingScreen').style.display = 'none';
+                }
+                else if (type === 'error') {
+                    alert('Error: ' + e.data.error);
+                    document.getElementById('loadingScreen').style.display = 'none';
+                }
             };
 
             worker.onerror = (error) => {

@@ -58,6 +58,7 @@ export async function getRsIds(snpsInfo, apiKey) {
     return snpsInfo;
 }
 
+
 export async function getChromosomeAndPosition(rsIDs, genomeBuild, apiKey) {
     const requestLimit = 10;
 
@@ -88,6 +89,7 @@ export async function getChromosomeAndPosition(rsIDs, genomeBuild, apiKey) {
     return results;
 }
 
+
 export function generateAlleleDosage(maf) {
     // Calculate Hardy-Weinberg equilibrium frequencies
     const calculateHWE = (maf) => {
@@ -100,8 +102,9 @@ export function generateAlleleDosage(maf) {
     const r = Math.random();
     const [domHom, het, recHom] = calculateHWE(maf);
 
-    return [r < recHom ? 2 : (domHom > r < recHom ? 1 : 0), domHom, het, recHom];
+    return [r < recHom ? 2 : (domHom > r < recHom ? 1 : 0)];
 }
+
 
 export function generateWeibullIncidenceCurve(k, b, linearPredictors, maxAge) {
     function populationCdf(t) {
@@ -129,6 +132,7 @@ export function generateWeibullIncidenceCurve(k, b, linearPredictors, maxAge) {
 
     return results;
 }
+
 
 export function estimateWeibullParameters(empiricalCdf, linearPredictors) {
     let ages = new Float64Array(empiricalCdf.map((x) => x.age));
@@ -187,12 +191,16 @@ export function estimateWeibullParameters(empiricalCdf, linearPredictors) {
     return params.x;
 }
 
-export async function getSnpsInfo(pgsId, build) {
-    const loadPgsModel = await loadScore(pgsId, build);
-    const parsedPgsModel = parseFile(loadPgsModel);
+
+export async function getSnpsInfo(pgsId, build, file) {
+    //const loadPgsModel = await loadScore(pgsId, build);
+    const loadPgsModel = await fetch(file);
+    const text = await loadPgsModel.text();
+    const parsedPgsModel = parseFile(text);
 
     return await processSnpData(parsedPgsModel);
 }
+
 
 export function matchCasesWithControls(
     header,
@@ -273,9 +281,10 @@ export function matchCasesWithControls(
         `   - Controls matched: ${totalControls} (target: ${targetControls})\n` +
         `   - Matching ratio: 1:${(totalControls / matched.length).toFixed(2)}`
     );
-    console.log(matched[0]['controls']);
+
     return matched;
 }
+
 
 // Efficient random selection without full shuffle
 function selectRandomItems(array, count) {

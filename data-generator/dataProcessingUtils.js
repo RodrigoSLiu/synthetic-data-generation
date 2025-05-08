@@ -3,6 +3,7 @@ import { generateAlleleDosage, getRsIds } from './geneticUtils.js';
 // TODO: TESTING PURPOSES
 import { testData } from '../test.js';
 
+
 export function processPRS(snpsInfo) {
     // Validate SNP data
     if (!snpsInfo.length) {
@@ -34,6 +35,7 @@ export function processPRS(snpsInfo) {
     return Float64Array.from(linearPredictors);
 }
 
+
 export async function processSnpData(snpData) {
     // Validate and extract relevant indices from headers
     const { headers, values } = snpData;
@@ -59,24 +61,23 @@ export async function processSnpData(snpData) {
 
     // Add rsIDs and validate SNP data
     //snpInfo = await getRsIds(snpInfo);//, API_KEY);
-    console.log(snpInfo);
+
     if (!snpInfo.length) {
         throw new Error('No valid SNPs processed. Check the input PGS file or SNP lookup results.');
     }
 
     // Calculate allele dosage frequencies for SNPs with valid rsIDs
-    let totalMaf = 0;
     snpInfo.forEach(snp => {
         if (!snp.rsID) {
             console.warn('Missing SNP ID for:', snp);
 
             snp.rsID = snp.id;
         }
-        totalMaf += parseFloat(snp.maf);
     });
-    console.log('TOTAL MAF: ', totalMaf);
+
     return snpInfo;
 }
+
 
 export async function processProfiles(snpsInfo, numberOfProfiles, caseControlmatch, numberOfCaseControls, ratioOfCaseControls, minAge, maxAge, minFollowUp, maxFollowUp, k, b) {
     // Validate SNP data
@@ -122,7 +123,7 @@ export async function processProfiles(snpsInfo, numberOfProfiles, caseControlmat
 
         // Generate SNP dosages and calculate PRS
         const snpDosages = snpsInfo.map(({ weight, maf }) => {
-            const [dosage, domHom, het, recHom] = generateAlleleDosage(maf);
+            const [dosage] = generateAlleleDosage(maf);
             prs += weight * dosage;
 
             maxDosage[dosage] += 1;
@@ -164,7 +165,7 @@ export async function processProfiles(snpsInfo, numberOfProfiles, caseControlmat
     console.log(
         `Profiles creation complete:\n` +
         `   - Average U: ${avgU / numberOfProfiles}\n` +
-        `   - Max Dosage: ${maxDosage[0] + maxDosage[1] + maxDosage[2]}: ${maxDosage[0]} \n1: ${maxDosage[1]} \n2: ${maxDosage[2]}\n` +
+        `   - Max Dosage: ${maxDosage[0] + maxDosage[1] + maxDosage[2]}: \n\t0: ${maxDosage[0]} \n\t1: ${maxDosage[1]} \n\t2: ${maxDosage[2]}\n` +
         `   - Cases created: ${numberOfCases}\n` +
         `   - Controls created: ${data.length - numberOfCases}\n` +
         `   - Case to Control ratio: ${(numberOfCases / (data.length - numberOfCases)).toFixed(2) * 100}%\n` +
