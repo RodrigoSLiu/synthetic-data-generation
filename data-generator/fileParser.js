@@ -24,15 +24,16 @@ export async function parseCsv(filePath, options) {
         if (data.length > 1) break;
     }
 
-    const header = data[0].split(options.delimiter).map(h => h.replace(/^"|"$/g, '').trim());
+    // Strip extra quotes or spaces from headers
+    const header = data[0].split(options.delimiter).map(h => h.replace(/"|\s+/g, '').trim());
 
     if (options.nLines !== undefined) {
         data = data.slice(1, options.nLines + 1);
-    }
-    else {
+    } else {
         data = data.slice(1);
     }
 
+    // Process data rows
     data = data.map((d) => {
         if (d.trim() === '') return null;
         let elements = d.split(options.delimiter).map(e => e.replace(/^"|"$/g, '').trim());
@@ -40,9 +41,18 @@ export async function parseCsv(filePath, options) {
         return header.reduce((obj, k, i) => {
             let value = elements[i];
 
-            // Convert "age" and "rate" to numbers
+            // Convert "age" to an integer
             if (k === 'age') value = parseInt(value, 10);
-            if (k === 'rate') value = parseFloat(value);
+
+            // Handle the "rate" field with validation
+            if (k === 'rate') {
+                value = parseFloat(value);
+
+                // If the rate is NaN or empty, set it to 0
+                if (isNaN(value) || value === '') {
+                    value = 0;
+                }
+            }
 
             return { ...obj, [k]: value };
         }, {});

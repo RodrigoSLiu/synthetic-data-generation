@@ -79,7 +79,7 @@ export async function processSnpData(snpData) {
 }
 
 
-export async function processProfiles(snpsInfo, numberOfProfiles, caseControlmatch, numberOfCaseControls, ratioOfCaseControls, minAge, maxAge, minFollowUp, maxFollowUp, k, b) {
+export async function processHeader(snpsInfo) {
     // Validate SNP data
     if (!snpsInfo.length) {
         throw new Error('No SNPs available for profile generation.');
@@ -88,8 +88,12 @@ export async function processProfiles(snpsInfo, numberOfProfiles, caseControlmat
     // Generate header structure
     const baseHeader = ['id', 'ageOfEntry', 'ageOfExit', 'prs', 'case', 'ageOfOnset'];
     const snpHeaders = snpsInfo.map(snp => snp.id);
-    const header = [...baseHeader, ...snpHeaders];
 
+    return [...baseHeader, ...snpHeaders];
+}
+
+
+export async function processProfiles(snpsInfo, numberOfProfiles, profileIdOffset, minAge, maxAge, minFollowUp, maxFollowUp, k, b) {
     // Helper functions
     const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
     let avgU = 0;
@@ -114,7 +118,7 @@ export async function processProfiles(snpsInfo, numberOfProfiles, caseControlmat
     let controlAvg = 0;
     let maxDosage = { 0: 0, 1: 0, 2: 0 };
 
-    while ((caseControlmatch && numberOfCases < numberOfCaseControls * ratioOfCaseControls) || data.length < numberOfProfiles) {
+    while (data.length < numberOfProfiles) {
         let prs = 0;
         const ageOfEntry = getRandomInt(minAge, maxAge);
         const ageOfExit = ageOfEntry + getRandomInt(minFollowUp, maxFollowUp);
@@ -133,7 +137,7 @@ export async function processProfiles(snpsInfo, numberOfProfiles, caseControlmat
 
         // Create profile array
         const profileArray = [
-            data.length, // Numerical ID
+            data.length + profileIdOffset, // Numerical ID
             ageOfEntry,
             ageOfExit,
             prs, // Rounded PRS
@@ -175,5 +179,5 @@ export async function processProfiles(snpsInfo, numberOfProfiles, caseControlmat
         `   - Control Average PRS: ${(controlAvg / (data.length - numberOfCases)).toFixed(4)}\n`
     );
 
-    return { header, data };
+    return data;
 }
