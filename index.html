@@ -24,23 +24,20 @@
             flex-direction: column;
         }
 
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 10px;
+        #progressBarContainer {
+            width: 60%;
+            height: 25px;
+            background-color: #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 15px;
         }
 
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-            100% {
-                transform: rotate(360deg);
-            }
+        #progressBar {
+            height: 100%;
+            width: 0%;
+            background-color: #3498db;
+            transition: width 0.3s ease;
         }
 
         #loadingText {
@@ -51,15 +48,19 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-<!-- Loading Screen -->
+<!-- Loading Screen with Progress Bar -->
 <div id="loadingScreen">
-    <div class="spinner"></div>
+    <div id="progressBarContainer">
+        <div id="progressBar"></div>
+    </div>
     <div id="loadingText">Generating data... Please wait</div>
 </div>
+
 <h1>Retrieve PGS Data</h1>
 <label for="pgsId">Enter PGS ID:</label>
 <input type="text" id="pgsId" placeholder="PGS ID" required>
 <br><br>
+
 <div>
     <label>Select Build:</label>
     <input type="radio" id="build37" name="build" value="37">
@@ -68,6 +69,7 @@
     <label for="build38">38</label>
 </div>
 <br><br>
+
 <div>
     <label for="numberOfProfiles">Number of profiles:</label>
     <input type="number" id="numberOfProfiles" placeholder="Number of profiles" required>
@@ -81,8 +83,7 @@
     <label for="followUp">Follow-up Period:</label>
     <input type="number" id="followUp" placeholder="Follow-up Period" required>
     <br><br>
-    <label for="caseControlMatch">Case Control Retrospective
-        Cohort? </label>
+    <label for="caseControlMatch">Case Control Retrospective Cohort? </label>
     <input type="checkbox" id="caseControlMatch">
 </div>
 <br><br>
@@ -101,6 +102,7 @@
     <button id="downloadVCF">Download VCF</button>
 </div>
 <br><br>
+
 <script type="module" src="main.js"></script>
 </body>
 </html>

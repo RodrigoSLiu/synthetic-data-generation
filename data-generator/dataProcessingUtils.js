@@ -94,6 +94,11 @@ export async function processHeader(snpsInfo) {
 
 
 export async function processProfiles(snpsInfo, numberOfProfiles, profileIdOffset, minAge, maxAge, minFollowUp, maxFollowUp, k, b) {
+    console.log(snpsInfo)
+    if (!snpsInfo.length) {
+        throw new Error('No SNPs available for profile generation.');
+    }
+
     // Helper functions
     const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
     let avgU = 0;

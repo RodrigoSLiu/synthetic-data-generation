@@ -1,5 +1,5 @@
 import { handleProfileRetrieval } from "../worker/workerController.js";
-import { parseCsv, dataToProfiles, downloadFile } from "../syntheticDataGenerator.js";
+import { parseCsv, dataToProfiles, downloadFile } from "../data-generator";
 
 
 
