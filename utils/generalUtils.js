@@ -16,24 +16,21 @@ export function countOccurrences(snpIndex, profiles) {
     return counts;
 }
 
-export function dataToProfiles(info) {
+export function dataToProfilesBlob(info) {
     const { header, data } = info;
-    const csvRows = [];
+    const blobParts = [];
 
-    // Add header row
-    csvRows.push(header.join(','));
+    // Add header
+    blobParts.push(header.join(',') + '\n');
 
-    // Add data rows
     for (const row of data) {
         const values = header.map((_, index) => {
             const value = row[index];
 
-            // Handle string escaping and formatting
             if (typeof value === 'string') {
                 return `"${value.replace(/"/g, '""')}"`;
             }
 
-            // Format numbers (PRS to 4 decimals, others as integers)
             if (typeof value === 'number') {
                 return header[index].toLowerCase().includes('prs')
                     ? value.toFixed(4)
@@ -43,11 +40,12 @@ export function dataToProfiles(info) {
             return value !== undefined ? value : '';
         });
 
-        csvRows.push(values.join(','));
+        blobParts.push(values.join(',') + '\n');
     }
 
-    return csvRows.join('\n');
+    return new Blob(blobParts, { type: 'text/csv' });
 }
+
 
 export function dataToVCF(info) {
     const { header, data } = info;

@@ -13,11 +13,12 @@ self.onmessage = async (e) => {
     try {
         /* global localforage */
         const {
-            parseCsv, getSnpsInfo, processPRS, generateWeibullIncidenceCurve,
+            parseCsv, getSnpsInfo, processHeader, processPRS, generateWeibullIncidenceCurve,
         } = await import('../syntheticDataGenerator.js');
 
-        //const incidenceRate = await parseCsv(incidenceRateFile, { delimiter: ',' });
         const snpsInfo = await getSnpsInfo(pgsId, build, pgsModelFile);
+        const header = await processHeader(snpsInfo);
+        //const incidenceRate = await parseCsv(incidenceRateFile, { delimiter: ',' });
         //const trainingLP = processPRS(snpsInfo);
         const [k, b] = [3.6766813031638073, 2.2400292570926646e-8];
         //const predictedIncidenceRate = generateWeibullIncidenceCurve(k, b, trainingLP, incidenceRate.length);
@@ -368,6 +369,7 @@ self.onmessage = async (e) => {
             }
         ]
 
+        await localforage.setItem("header", header);
         // Send metadata and initialization signal
         self.postMessage({
             type: 'meta',

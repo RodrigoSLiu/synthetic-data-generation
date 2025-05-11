@@ -18,6 +18,7 @@ async function handleSnpsInfo(pgsIdInput, buildInput, incidenceRateFile, pgsMode
 
         snpWorker.onmessage = (e) => {
             const { type, snpsInfo, predictedIncidenceRate, k, b } = e.data;
+
             if (type === 'meta') {
                 snpWorker.terminate();
                 resolve({ snpsInfo, predictedIncidenceRate, k, b });
@@ -39,10 +40,11 @@ export async function handleProfileRetrieval(pgsIdInput, buildInput, caseControl
     }
 
     loadingScreen.style.display = 'flex';
+    /* global localforage */
     await localforage.clear();
 
-    const totalProfiles = 1_000_000;
-    const workersCount = 2;
+    const totalProfiles = 100_000;
+    const workersCount = 1;
     const profilesPerWorker = totalProfiles / workersCount;
 
     let completed = 0;
@@ -88,7 +90,6 @@ export async function handleProfileRetrieval(pgsIdInput, buildInput, caseControl
                 updateLoadingProgress((completed / workersCount) * 100);
 
                 if (completed === workersCount) {
-                    console.log(await localforage.keys());
                     loadingScreen.style.display = 'none';
                     if (onComplete) onComplete();
                 }

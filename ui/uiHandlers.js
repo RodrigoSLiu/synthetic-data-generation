@@ -1,5 +1,5 @@
 import { handleProfileRetrieval } from "../worker/workerController.js";
-import { parseCsv, dataToProfiles, downloadFile } from "../data-generator";
+import { parseCsv, dataToProfilesBlob, downloadFile } from "../data-generator";
 
 
 
@@ -102,15 +102,15 @@ export function initializeUI(config) {
     document.getElementById('downloadProfiles').addEventListener('click', async () => {
         /* global localforage */
         const combinedGeneratedProfiles = [];
-        await localforage.iterate(async (value, key) => {
-            console.log(value, key)
+
+        // Gather all profile chunks
+        await localforage.iterate((value, key) => {
             if (key.startsWith('generatedProfiles_worker')) {
-                combinedGeneratedProfiles.push({key, data: value});
-                //await localforage.remove(key);
+                combinedGeneratedProfiles.push({ key, data: value });
             }
         });
-        console.log(combinedGeneratedProfiles)
-        // Sort by key to maintain correct order (worker0_chunk0, ..., workerN_chunkM)
+
+        // Sort to ensure correct order
         combinedGeneratedProfiles.sort((a, b) => {
             const extractNumbers = (k) => k.match(/\d+/g).map(Number);
             const [wA, cA] = extractNumbers(a.key);
@@ -118,12 +118,24 @@ export function initializeUI(config) {
             return wA - wB || cA - cB;
         });
 
-        // Flatten to single array
+        // Flatten into one data array
         const finalProfiles = combinedGeneratedProfiles.flatMap(entry => entry.data);
+        const header = await localforage.getItem('header');
 
-        const profilesInfo = { header: window.data.header, data: finalProfiles };
-        const profilesDataCsv = dataToProfiles(profilesInfo);
-        //downloadFile(profilesDataCsv, 'all_profiles', 'csv');
+        const profilesInfo = { header, data: finalProfiles };
+
+        // Use Blob-based CSV generation
+        const blob = dataToProfilesBlob(profilesInfo);
+
+        // Trigger file download
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'all_profiles.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     });
 
     // Download case-control profiles
@@ -140,7 +152,7 @@ export function initializeUI(config) {
     });
 
     // Button to retrieve data
-    document.getElementById('retrieveButton').addEventListener('click', () => {
+    document.getElementById('retrieveButton').addEventListener('click', async() => {
         const loadingScreen = document.getElementById('loadingScreen');
         const pgsIdInput = document.getElementById('pgsId').value.trim();
         const buildInput = document.querySelector('input[name="build"]:checked').value;
@@ -149,6 +161,6 @@ export function initializeUI(config) {
         loadingScreen.style.display = 'flex';
 
         // Pass the renderData function as a callback to handleProfileRetrieval
-        handleProfileRetrieval(pgsIdInput, buildInput, caseControlMatch, incidenceRateFile, pgsModelFile, loadingScreen, renderData);
+        await handleProfileRetrieval(pgsIdInput, buildInput, caseControlMatch, incidenceRateFile, pgsModelFile, loadingScreen, renderData);
     });
 }

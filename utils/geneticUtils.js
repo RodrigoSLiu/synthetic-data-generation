@@ -1,10 +1,10 @@
 import { asyncPool, httpRequest } from './httpUtils.js';
-import { sleep } from './utils.js';
-import { parseFile } from './fileParser.js';
-import { loadScore } from './loaders.js';
-import { processSnpData } from './dataProcessingUtils.js';
+import { sleep } from './generalUtils.js';
+import { parseFile } from '../data-generator/fileParser.js';
+import { loadScore } from '../data-generator/loaders.js';
+import { processSnpData } from '../data-generator/dataProcessingUtils.js';
 
-import { nelderMead } from './nelderMead.js';
+import { nelderMead } from '../data-generator/nelderMead.js';
 
 
 export async function getRsIds(snpsInfo, apiKey) {

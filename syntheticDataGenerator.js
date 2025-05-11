@@ -18,7 +18,7 @@ import {
     generateWeibullIncidenceCurve,
     processPRS,
     matchCasesWithControls,
-    dataToProfiles,
+    dataToProfilesBlob,
     dataToVCF,
     downloadFile,
     processHeader
@@ -44,7 +44,7 @@ export {
     generateWeibullIncidenceCurve,
     processPRS,
     matchCasesWithControls,
-    dataToProfiles,
+    dataToProfilesBlob,
     dataToVCF,
     downloadFile,
     processHeader,

@@ -1,4 +1,4 @@
-import { generateAlleleDosage, getRsIds } from './geneticUtils.js';
+import { generateAlleleDosage, getRsIds } from '../utils/geneticUtils.js';
 
 // TODO: TESTING PURPOSES
 import { testData } from '../test.js';
@@ -94,7 +94,6 @@ export async function processHeader(snpsInfo) {
 
 
 export async function processProfiles(snpsInfo, numberOfProfiles, profileIdOffset, minAge, maxAge, minFollowUp, maxFollowUp, k, b) {
-    console.log(snpsInfo)
     if (!snpsInfo.length) {
         throw new Error('No SNPs available for profile generation.');
     }
