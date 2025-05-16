@@ -1,6 +1,5 @@
-import { handleProfileRetrieval } from "../worker/workerController.js";
-import { parseCsv, dataToProfilesBlob, downloadFile } from "../data-generator";
-
+import { handleCaseControlRetrieval, handleProfileRetrieval } from '../worker/workerController.js';
+import { handleSnpsInfo, parseCsv, downloadProfilesFromChunks, downloadFile } from '../syntheticDataGenerator.js';
 
 
 async function loadIncidenceChart(incidenceRateFile, predictedData, htmlElement) {
@@ -81,7 +80,7 @@ export function initializeUI(config) {
         globalIncidenceFile,
         pgsModelFile,
         parseCsv,
-        dataToVCF,
+        dataToVCF
     } = config;
 
     // Table and chart rendering callback
@@ -99,50 +98,13 @@ export function initializeUI(config) {
     };
 
     // Download profiles
+    /* global localforage, pako */
     document.getElementById('downloadProfiles').addEventListener('click', async () => {
-        /* global localforage */
-        const combinedGeneratedProfiles = [];
-
-        // Gather all profile chunks
-        await localforage.iterate((value, key) => {
-            if (key.startsWith('generatedProfiles_worker')) {
-                combinedGeneratedProfiles.push({ key, data: value });
-            }
-        });
-
-        // Sort to ensure correct order
-        combinedGeneratedProfiles.sort((a, b) => {
-            const extractNumbers = (k) => k.match(/\d+/g).map(Number);
-            const [wA, cA] = extractNumbers(a.key);
-            const [wB, cB] = extractNumbers(b.key);
-            return wA - wB || cA - cB;
-        });
-
-        // Flatten into one data array
-        const finalProfiles = combinedGeneratedProfiles.flatMap(entry => entry.data);
-        const header = await localforage.getItem('header');
-
-        const profilesInfo = { header, data: finalProfiles };
-
-        // Use Blob-based CSV generation
-        const blob = dataToProfilesBlob(profilesInfo);
-
-        // Trigger file download
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'all_profiles.csv';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        await downloadProfilesFromChunks({ prefix: 'worker_', filename: 'all_profiles.csv', splitDataset: false });
     });
 
-    // Download case-control profiles
-    document.getElementById('downloadCaseControl').addEventListener('click', () => {
-        const caseControlDataCsv = dataToProfiles(window.data.matchedGroups);
-
-        downloadFile(caseControlDataCsv, 'case_control_profiles', 'csv');
+    document.getElementById('downloadCaseControl').addEventListener('click', async () => {
+        await downloadProfilesFromChunks({ prefix: 'worker_', filename: 'case_controls.csv', splitDataset: true });
     });
 
     // Download VCF
@@ -152,15 +114,44 @@ export function initializeUI(config) {
     });
 
     // Button to retrieve data
-    document.getElementById('retrieveButton').addEventListener('click', async() => {
+    document.getElementById('retrieveButton').addEventListener('click', async () => {
         const loadingScreen = document.getElementById('loadingScreen');
         const pgsIdInput = document.getElementById('pgsId').value.trim();
         const buildInput = document.querySelector('input[name="build"]:checked').value;
         const caseControlMatch = document.getElementById('caseControlMatch').checked;
+        let snpsInfo, predictedIncidenceRate, k, b;
 
         loadingScreen.style.display = 'flex';
+        /* global localforage */
+        // TODO: remove this
+        await localforage.clear();
 
-        // Pass the renderData function as a callback to handleProfileRetrieval
-        await handleProfileRetrieval(pgsIdInput, buildInput, caseControlMatch, incidenceRateFile, pgsModelFile, loadingScreen, renderData);
+        try {
+            ({ snpsInfo, predictedIncidenceRate, k, b } = await handleSnpsInfo(
+                pgsIdInput,
+                buildInput,
+                incidenceRateFile,
+                pgsModelFile
+            ));
+        } catch (error) {
+            console.error(error.message);
+            alert('Failed to load SNPs info: ' + error.message);
+            loadingScreen.style.display = 'none';
+
+            return;
+        }
+
+        try {
+            if (caseControlMatch) {
+                await handleCaseControlRetrieval(snpsInfo, k, b, incidenceRateFile, pgsModelFile, loadingScreen, renderData);
+            }
+            else {
+                await handleProfileRetrieval(snpsInfo, k, b, incidenceRateFile, pgsModelFile, loadingScreen, renderData);
+            }
+        } catch (error) {
+            console.error(error.message);
+            alert('Error during profile generation: ' + error.message);
+            loadingScreen.style.display = 'none';
+        }
     });
 }

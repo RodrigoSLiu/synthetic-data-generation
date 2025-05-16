@@ -1,4 +1,4 @@
-import { generateAlleleDosage, getRsIds } from '../utils/geneticUtils.js';
+import { generateAlleleDosage, getRsIds, getSnpsInfo } from './geneticUtils.js';
 
 // TODO: TESTING PURPOSES
 import { testData } from '../test.js';
@@ -93,21 +93,23 @@ export async function processHeader(snpsInfo) {
 }
 
 
-export async function processProfiles(snpsInfo, numberOfProfiles, profileIdOffset, minAge, maxAge, minFollowUp, maxFollowUp, k, b) {
+export async function processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge, minFollowUp, maxFollowUp, k, b) {
     if (!snpsInfo.length) {
         throw new Error('No SNPs available for profile generation.');
     }
 
     // Helper functions
-    const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
     let avgU = 0;
-    const calculateTimeDiseaseOnset = (age, prs, k, b) => {
-        const r = Math.random();
-        const numerator = Math.log(r);
-        const val = Math.pow(age, k) - numerator / (b * Math.exp(prs));
-        avgU += r;
-        return Math.pow(val, 1 / k);
-    };
+    const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+    function calculateTimeDiseaseOnset(ageEntry, prs, k, b) {
+        const u = Math.random();  // Should be between 0 and 1
+        const ageTerm = Math.pow(ageEntry, k);
+        const denominator = b * Math.exp(prs); // <-- must use actual PRS here
+        const logArgument = ageTerm - Math.log(u) / denominator;
+
+        return logArgument > 0 ? Math.pow(logArgument, 1 / k) : Infinity;
+    }
 
     // Generate profiles data
     const data = [];
@@ -118,52 +120,55 @@ export async function processProfiles(snpsInfo, numberOfProfiles, profileIdOffse
     let maxIsCase = false;
     let minPrs = 0;
     let minIsCase = false;
+    let totalAvg = 0;
     let caseAvg = 0;
     let controlAvg = 0;
     let maxDosage = { 0: 0, 1: 0, 2: 0 };
 
     while (data.length < numberOfProfiles) {
-        let prs = 0;
-        const ageOfEntry = getRandomInt(minAge, maxAge);
-        const ageOfExit = ageOfEntry + getRandomInt(minFollowUp, maxFollowUp);
-        const onsetAge = Math.round(calculateTimeDiseaseOnset(ageOfEntry, prs, k, b));
-        const isCase = onsetAge < ageOfExit ? 1 : 0;
-
-        // Generate SNP dosages and calculate PRS
+        let prs = 0.0;
         const snpDosages = snpsInfo.map(({ weight, maf }) => {
-            const [dosage] = generateAlleleDosage(maf);
-            prs += weight * dosage;
+            const dosage = generateAlleleDosage(maf);
+            prs += parseFloat(weight) * dosage;
 
             maxDosage[dosage] += 1;
 
             return dosage;
         });
+        const ageOfEntry = getRandomInt(minAge, maxAge);
+        const ageOfExit = ageOfEntry + getRandomInt(minFollowUp, maxFollowUp);
+        const rawOnset = calculateTimeDiseaseOnset(ageOfEntry, prs, k, b);
+        const isCase = Number.isFinite(rawOnset) &&
+        rawOnset >= ageOfEntry &&
+        rawOnset <= ageOfExit ? 1 : 0;
 
         // Create profile array
         const profileArray = [
-            data.length + profileIdOffset, // Numerical ID
+            0, // The correct ID will be given at download
             ageOfEntry,
             ageOfExit,
-            prs, // Rounded PRS
+            prs,
             isCase,
-            onsetAge, // Use null instead of Infinity for missing values
+            rawOnset < ageOfExit ? Math.round(rawOnset) : Infinity,
             ...snpDosages
         ];
 
         if (isCase === 1) {
             numberOfCases++;
             caseAvg += prs;
+            totalAvg += prs;
         }
         else if (isCase === 0) {
             controlAvg += prs;
+            totalAvg += prs;
         }
 
         if (prs > maxPrs) {
-            maxPrs += prs;
+            maxPrs = prs;
             maxIsCase = isCase;
         }
         else if (prs < minPrs) {
-            minPrs += prs;
+            minPrs = prs;
             minIsCase = isCase;
         }
 
@@ -172,7 +177,7 @@ export async function processProfiles(snpsInfo, numberOfProfiles, profileIdOffse
 
     console.log(
         `Profiles creation complete:\n` +
-        `   - Average U: ${avgU / numberOfProfiles}\n` +
+        `   - Average total prs: ${totalAvg / numberOfProfiles}\n` +
         `   - Max Dosage: ${maxDosage[0] + maxDosage[1] + maxDosage[2]}: \n\t0: ${maxDosage[0]} \n\t1: ${maxDosage[1]} \n\t2: ${maxDosage[2]}\n` +
         `   - Cases created: ${numberOfCases}\n` +
         `   - Controls created: ${data.length - numberOfCases}\n` +

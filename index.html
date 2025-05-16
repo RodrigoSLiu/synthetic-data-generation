@@ -4,51 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PGS Data Visualization</title>
-    <style>
-        canvas {
-            border: 1px solid black;
-        }
-
-        /* Loading screen styles */
-        #loadingScreen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.9);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            flex-direction: column;
-        }
-
-        #progressBarContainer {
-            width: 60%;
-            height: 25px;
-            background-color: #e0e0e0;
-            border-radius: 8px;
-            overflow: hidden;
-            margin-bottom: 15px;
-        }
-
-        #progressBar {
-            height: 100%;
-            width: 0%;
-            background-color: #3498db;
-            transition: width 0.3s ease;
-        }
-
-        #loadingText {
-            font-size: 1.2em;
-            color: #333;
-        }
-    </style>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-<!-- Loading Screen with Progress Bar -->
+<!-- Loading Screen -->
 <div id="loadingScreen">
     <div id="progressBarContainer">
         <div id="progressBar"></div>
@@ -56,52 +17,83 @@
     <div id="loadingText">Generating data... Please wait</div>
 </div>
 
-<h1>Retrieve PGS Data</h1>
-<label for="pgsId">Enter PGS ID:</label>
-<input type="text" id="pgsId" placeholder="PGS ID" required>
-<br><br>
+<!-- Header -->
+<header class="header">
+    <h1><i class="fas fa-dna"></i> PGS Data Visualization</h1>
+</header>
 
-<div>
-    <label>Select Build:</label>
-    <input type="radio" id="build37" name="build" value="37">
-    <label for="build37">37</label>
-    <input type="radio" id="build38" name="build" value="38" checked>
-    <label for="build38">38</label>
-</div>
-<br><br>
+<!-- Main Content -->
+<main>
+    <section>
+        <div class="input-group">
+            <label for="pgsId">PGS ID:</label>
+            <input type="text" id="pgsId" placeholder="PGS000004" value="PGS000004">
+        </div>
 
-<div>
-    <label for="numberOfProfiles">Number of profiles:</label>
-    <input type="number" id="numberOfProfiles" placeholder="Number of profiles" required>
-    <br><br>
-    <label for="minAge">Minimum Age:</label>
-    <input type="number" id="minAge" placeholder="Minimum Age" required>
-    <br><br>
-    <label for="maxAge">Maximum Age:</label>
-    <input type="number" id="maxAge" placeholder="Maximum Age" required>
-    <br><br>
-    <label for="followUp">Follow-up Period:</label>
-    <input type="number" id="followUp" placeholder="Follow-up Period" required>
-    <br><br>
-    <label for="caseControlMatch">Case Control Retrospective Cohort? </label>
-    <input type="checkbox" id="caseControlMatch">
-</div>
-<br><br>
+        <fieldset>
+            <legend>Genome Build</legend>
+            <div class="input-group">
+                <label>
+                    <input type="radio" name="build" value="37"> GRCh37
+                </label>
+                <label>
+                    <input type="radio" name="build" value="38" checked> GRCh38
+                </label>
+            </div>
+        </fieldset>
 
-<button id="retrieveButton">Retrieve</button>
+        <div class="input-group">
+            <label for="numberOfProfiles">Profiles:</label>
+            <input type="number" id="numberOfProfiles" value="1000" min="100" max="10000">
+        </div>
 
-<h1>Expected Breast Cancer Incidence Rates</h1>
-<canvas id="expectedIncidenceChart"></canvas>
-<br><br>
+        <div class="input-group">
+            <label for="minAge">Age Range:</label>
+            <div class="age-range">
+                <input type="number" id="minAge" placeholder="Min Age" value="30">
+                <span>to</span>
+                <input type="number" id="maxAge" placeholder="Max Age" value="80">
+            </div>
+        </div>
 
-<div>
-    <button id="downloadProfiles">Download All Profiles</button>
-    <br>
-    <button id="downloadCaseControl">Download Case Control Match</button>
-    <br>
-    <button id="downloadVCF">Download VCF</button>
-</div>
-<br><br>
+        <div class="input-group">
+            <label for="minFollowUp">Follow-up (years):</label>
+            <div class="followUp-range">
+                <input type="number" id="minFollowUp" placeholder="Min Follow Up" value="15" min="1" max="50">
+                <span>to</span>
+                <input type="number" id="maxFollowUp" placeholder="Max Follow Up" value="30" min="1" max="50">
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label for="caseControlMatch" class="checkbox-label">
+                <input type="checkbox" id="caseControlMatch" checked>
+                Case Control Retrospective Cohort?
+            </label>
+        </div>
+
+        <button id="retrieveButton" class="button primary-button">
+            <i class="fas fa-rocket"></i> Generate Data
+        </button>
+    </section>
+
+    <section>
+        <h2>Incidence Rates</h2>
+        <canvas id="expectedIncidenceChart"></canvas>
+    </section>
+
+    <section class="downloads">
+        <button id="downloadProfiles" class="button">
+            <i class="fas fa-download"></i> Download Profiles
+        </button>
+        <button id="downloadCaseControl" class="button">
+            <i class="fas fa-balance-scale"></i> Case-Control Data
+        </button>
+        <button id="downloadVCF" class="button">
+            <i class="fas fa-file-code"></i> Export VCF
+        </button>
+    </section>
+</main>
 
 <script type="module" src="main.js"></script>
 </body>

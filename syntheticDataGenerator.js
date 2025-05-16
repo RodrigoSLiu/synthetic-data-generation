@@ -17,12 +17,14 @@ import {
     empiricalCdf,
     generateWeibullIncidenceCurve,
     processPRS,
-    matchCasesWithControls,
+    matchCasesControls,
     dataToProfilesBlob,
     dataToVCF,
     downloadFile,
-    processHeader
-} from './data-generator';
+    processHeader,
+    handleSnpsInfo,
+    downloadProfilesFromChunks
+} from './index.js';
 
 export {
     processProfiles,
@@ -43,9 +45,11 @@ export {
     empiricalCdf,
     generateWeibullIncidenceCurve,
     processPRS,
-    matchCasesWithControls,
+    matchCasesControls,
     dataToProfilesBlob,
     dataToVCF,
     downloadFile,
     processHeader,
+    handleSnpsInfo,
+    downloadProfilesFromChunks
 };

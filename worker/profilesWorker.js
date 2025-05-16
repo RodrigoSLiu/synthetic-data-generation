@@ -5,67 +5,49 @@ importScripts(
 
 self.onmessage = async (e) => {
     const {
-        workerId,
-        snpsInfo,
-        numberOfProfiles,
-        minAge,
-        maxAge,
-        minFollow,
-        maxFollow,
-        k,
-        b,
-        profileIdOffset
+        workerId, snpsInfo, totalChunks, chunkSize, chunkOffset,
+        totalWorkers, minAge, maxAge, minFollow, maxFollow, k, b
     } = e.data;
 
     try {
-        /* global localforage */
         const {
-            parseCsv, processPRS, generateWeibullIncidenceCurve,
-            processProfiles, matchCasesWithControls
+            processProfiles
         } = await import('../syntheticDataGenerator.js');
 
-        // Load necessary files and data
-        const CHUNK_SIZE = 100_000;
-        const data = await processProfiles(snpsInfo, numberOfProfiles, profileIdOffset, minAge, maxAge, minFollow, maxFollow, k, b);
+        const { deflate } = await import('https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.esm.mjs');
 
-        // Send metadata and initialization signal
-        self.postMessage({
-            type: 'meta',
-            snpsInfo,
-            totalData: data.length
-        });
-
-        // Update progress and process data
-        const progressInterval = 100;  // Report progress every 100 records
-        let progress = 0;
-
-        // Process all the data (directly send all data in one go)
-        self.postMessage({
-            type: 'progress',
-            progress: 0
-        });
-
-        // Simulate a delay for processing and report progress
-        for (let i = 0; i < data.length; i++) {
-            progress = (i / data.length) * 100;
-            if (i % progressInterval === 0) {
-                self.postMessage({
-                    type: 'progress',
-                    progress: progress
-                });
-            }
+        const workerChunks = [];
+        for (let i = chunkOffset; i < totalChunks; i += totalWorkers) {
+            workerChunks.push(i);
         }
 
-        for (let j = 0; j < data.length; j += CHUNK_SIZE) {
-            const chunk = data.slice(j, j + CHUNK_SIZE);
+        for (let idx = 0; idx < workerChunks.length; idx++) {
+            const chunkIndex = workerChunks[idx];
 
-            await localforage.setItem(`generatedProfiles_worker_${workerId}_chunk_${j / CHUNK_SIZE}`, chunk);
+            const chunkData = await processProfiles(
+                snpsInfo,
+                chunkSize,
+                minAge,
+                maxAge,
+                minFollow,
+                maxFollow,
+                k,
+                b
+            );
+
+            const compressed = deflate(JSON.stringify(chunkData));
+
+            /* global localforage */
+            await localforage.setItem(
+                `worker_${workerId}_chunk_${chunkIndex}`,
+                compressed
+            );
+
+            const progress = Math.floor((idx + 1) / workerChunks.length * 100);
+            self.postMessage({ type: 'progress', progress });
         }
 
-        // Once data is fully processed, send the full dataset back
-        self.postMessage({
-            type: 'complete',
-        });
+        self.postMessage({ type: 'complete' });
 
     } catch (error) {
         self.postMessage({ type: 'error', error: error.message });

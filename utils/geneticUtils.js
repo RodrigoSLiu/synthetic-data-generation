@@ -1,8 +1,7 @@
 import { asyncPool, httpRequest } from './httpUtils.js';
 import { sleep } from './generalUtils.js';
 import { parseFile } from '../data-generator/fileParser.js';
-import { loadScore } from '../data-generator/loaders.js';
-import { processSnpData } from '../data-generator/dataProcessingUtils.js';
+import { processSnpData } from './dataProcessingUtils.js';
 
 import { nelderMead } from '../data-generator/nelderMead.js';
 
@@ -62,7 +61,7 @@ export async function getRsIds(snpsInfo, apiKey) {
 export async function getChromosomeAndPosition(rsIDs, genomeBuild, apiKey) {
     const requestLimit = 10;
 
-    const results = await asyncPool(requestLimit, rsIDs, async (rsID) => {
+    return await asyncPool(requestLimit, rsIDs, async (rsID) => {
         rsID = rsID.split('rs')[1];
         const eutilsURL = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=snp&id=${rsID}&retmode=json&api_key=${apiKey}`;
 
@@ -85,24 +84,31 @@ export async function getChromosomeAndPosition(rsIDs, genomeBuild, apiKey) {
             return null;
         }
     });
-
-    return results;
 }
 
 
 export function generateAlleleDosage(maf) {
-    // Calculate Hardy-Weinberg equilibrium frequencies
-    const calculateHWE = (maf) => {
-        const recessive = maf ** 2;
-        const dominant = (1 - maf) ** 2;
-
-        return [dominant, 1 - dominant - recessive, recessive];
-    };
-
     const r = Math.random();
-    const [domHom, het, recHom] = calculateHWE(maf);
+    const p0 = (1 - maf) ** 2;
+    const p1 = 2 * maf * (1 - maf);
+    const p2 = maf ** 2;
 
-    return [r < recHom ? 2 : (domHom > r < recHom ? 1 : 0)];
+    const recessive = maf ** 2;
+    const dominant = (1 - maf) ** 2;
+
+    let dosage = 0;
+
+    if (r < p0) {
+        dosage = 0;
+    }
+    else if (r < p0 + p1) {
+        dosage = 1;
+    }
+    else {
+        dosage = 2;
+    }
+
+    return dosage;
 }
 
 
@@ -193,110 +199,48 @@ export function estimateWeibullParameters(empiricalCdf, linearPredictors) {
 
 
 export async function getSnpsInfo(pgsId, build) {
-    const loadPgsModel = await loadScore(pgsId, build);
-    const parsedPgsModel = parseFile(loadPgsModel);
+    //const loadPgsModel = await loadScore(pgsId, build);
+    const loadPgsModel = await fetch('../data/pgs_model_test.txt');
+    const parsedPgsModel = parseFile(await loadPgsModel.text());
 
     return await processSnpData(parsedPgsModel);
 }
 
 
-export function matchCasesWithControls(
-    header,
-    data,
-    totalTarget = 10000,
-    caseControlRatio = 0.5
-) {
-    // Get column indexes from header
-    const caseIdx = header.indexOf('case');
-    const onsetIdx = header.indexOf('ageOfOnset');
-    const entryIdx = header.indexOf('ageOfEntry');
-    const exitIdx = header.indexOf('ageOfExit');
-    const idIdx = header.indexOf('id');
+export function matchCasesControls(cases, controls, controlsPerCase = 1) {
+    const ENTRY_IDX = 1;
+    const ONSET_IDX = 5;
 
-    // Validate column indexes
-    [caseIdx, entryIdx, exitIdx, idIdx].forEach((idx) => {
-        if (idx === -1) throw new Error('Missing required column');
-    });
+    const results = [];
 
-    // Split population
-    const allCases = data.filter(row => row[caseIdx] === 1);
-    const allControls = data.filter(row => row[caseIdx] === 0);
+    const baseControls = Math.floor(controlsPerCase);
+    const extraControlChance = controlsPerCase - baseControls;
 
-    // Pre-process controls into Map by entryAge for O(1) lookups
-    const controlsByEntryAge = new Map();
-    allControls.forEach(control => {
-        const entryAge = control[entryIdx];
+    const unusedControls = [...controls];
 
-        if (!controlsByEntryAge.has(entryAge)) {
-            controlsByEntryAge.set(entryAge, []);
+    for (let caseIndividual of cases) {
+        const caseAgeOfOnset = caseIndividual[ONSET_IDX];
+        const matchedControls = [];
+
+        // Try to find `baseControls` number of matches
+        for (let j = 0; j < baseControls; j++) {
+            const matchIndex = unusedControls.findIndex(p => p[ENTRY_IDX] === caseAgeOfOnset);
+            if (matchIndex === -1) break;
+            matchedControls.push(unusedControls.splice(matchIndex, 1)[0]);
         }
 
-        controlsByEntryAge.get(entryAge).push(control);
-    });
+        // If enough base controls were found, maybe add an extra
+        if (matchedControls.length === baseControls) {
+            if (Math.random() < extraControlChance) {
+                const matchIndex = unusedControls.findIndex(p => p[ENTRY_IDX] === caseAgeOfOnset);
+                if (matchIndex !== -1) {
+                    matchedControls.push(unusedControls.splice(matchIndex, 1)[0]);
+                }
+            }
 
-    // Calculate targets
-    const targetCases = Math.round(totalTarget * caseControlRatio);
-    const targetControls = totalTarget - targetCases;
-
-    // Resample cases using Fisher-Yates shuffle
-    const selectedCases = [];
-    const caseCopies = [...allCases];
-    for (let i = 0; i < Math.min(targetCases, caseCopies.length); i++) {
-        const randIndex = Math.floor(Math.random() * (caseCopies.length - i)) + i;
-        [caseCopies[i], caseCopies[randIndex]] = [caseCopies[randIndex], caseCopies[i]];
-        selectedCases.push(caseCopies[i]);
+            results.push(caseIndividual, ...matchedControls);
+        }
     }
 
-    const matched = [];
-    let totalControls = 0;
-
-    // Main matching loop
-    for (const caseRow of selectedCases) {
-        const caseEntryAge = caseRow[entryIdx];
-        const eligibleControls = controlsByEntryAge.get(caseEntryAge) || [];
-
-        // Calculate needed controls
-        const remaining = targetControls - totalControls;
-        const remainingCases = selectedCases.length - matched.length;
-        const needed = Math.max(1, Math.min(
-            Math.ceil(remaining / remainingCases),
-            eligibleControls.length
-        ));
-
-        // Select random controls without modifying original array
-        const selected = selectRandomItems(eligibleControls, needed);
-
-        matched.push({
-            case: caseRow,
-            controls: selected
-        });
-        totalControls += selected.length;
-    }
-
-    console.log(
-        `Case-Control Matching Complete:\n` +
-        `   - Cases matched: ${matched.length} (target: ${targetCases})\n` +
-        `   - Controls matched: ${totalControls} (target: ${targetControls})\n` +
-        `   - Matching ratio: 1:${(totalControls / matched.length).toFixed(2)}`
-    );
-
-    return matched;
-}
-
-
-// Efficient random selection without full shuffle
-function selectRandomItems(array, count) {
-    const result = [];
-    const taken = new Set();
-
-    for (let i = 0; i < count && i < array.length; i++) {
-        let index;
-        do {
-            index = Math.floor(Math.random() * array.length);
-        } while (taken.has(index));
-
-        taken.add(index);
-        result.push(array[index]);
-    }
-    return result;
+    return { results };
 }

@@ -2,6 +2,7 @@ export function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+
 export function countOccurrences(snpIndex, profiles) {
     const counts = { 0: 0, 1: 0, 2: 0 }; // Initialize counts for 0, 1, and 2
 
@@ -15,6 +16,7 @@ export function countOccurrences(snpIndex, profiles) {
 
     return counts;
 }
+
 
 export function dataToProfilesBlob(info) {
     const { header, data } = info;
@@ -33,7 +35,7 @@ export function dataToProfilesBlob(info) {
 
             if (typeof value === 'number') {
                 return header[index].toLowerCase().includes('prs')
-                    ? value.toFixed(4)
+                    ? value
                     : Math.round(value);
             }
 
@@ -98,6 +100,92 @@ export function dataToVCF(info) {
     // Return complete VCF file content
     return vcfLines.join('\n');
 }
+
+
+export async function downloadProfilesFromChunks({ prefix, filename, splitDataset, remapIds = true }) {
+    /* global localforage, pako */
+    const CASE_IDX = 4;
+    const parts = [];
+    const casesParts = [];
+    const controlsParts = [];
+
+    const header = await localforage.getItem('header');
+    if (!header) {
+        alert('Header missing.');
+        return;
+    }
+
+    parts.push(header.join(',') + '\n');
+    casesParts.push(header.join(',') + '\n');
+    controlsParts.push(header.join(',') + '\n');
+
+    const allChunks = [];
+    await localforage.iterate((value, key) => {
+        if (key.startsWith(prefix)) {
+            allChunks.push({ key, compressedData: value });
+        }
+    });
+
+    allChunks.sort((a, b) => {
+        const extractNumbers = (k) => k.match(/\d+/g).map(Number);
+        const [wA, cA] = extractNumbers(a.key);
+        const [wB, cB] = extractNumbers(b.key);
+        return wA - wB || cA - cB;
+    });
+
+    let newId = 1; // Counter for remapped IDs
+
+    for (const entry of allChunks) {
+        const decompressed = pako.inflate(new Uint8Array(entry.compressedData), { to: 'string' });
+        const parsedChunk = JSON.parse(decompressed);
+
+        for (const profile of parsedChunk) {
+            if (remapIds) {
+                profile[0] = newId++; // Assuming ID is the first element
+            }
+
+            if (splitDataset) {
+                if (profile[CASE_IDX] === 1) casesParts.push(profile.join(',') + '\n');
+                else controlsParts.push(profile.join(',') + '\n');
+            }
+
+            parts.push(profile.join(',') + '\n');
+        }
+    }
+
+    if (splitDataset) {
+        const casesBlob = new Blob(casesParts, { type: 'text/csv' });
+        const controlsBlob = new Blob(controlsParts, { type: 'text/csv' });
+        const casesUrl = URL.createObjectURL(casesBlob);
+        const controlsUrl = URL.createObjectURL(controlsBlob);
+        const a = document.createElement('a');
+
+        a.href = casesUrl;
+        a.download = 'cases.csv';
+        document.body.appendChild(a);
+        a.click();
+        URL.revokeObjectURL(casesUrl);
+
+        a.href = controlsUrl;
+        a.download = 'controls.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(controlsUrl);
+    }
+
+
+    const blob = new Blob(parts, { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
 
 export function downloadFile(data, filename, format = 'csv') {
     // Determine MIME type and extension based on format
