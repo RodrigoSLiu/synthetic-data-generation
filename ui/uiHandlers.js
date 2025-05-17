@@ -117,14 +117,51 @@ export function initializeUI(config) {
     document.getElementById('retrieveButton').addEventListener('click', async () => {
         const loadingScreen = document.getElementById('loadingScreen');
         const pgsIdInput = document.getElementById('pgsId').value.trim();
-        const buildInput = document.querySelector('input[name="build"]:checked').value;
-        const caseControlMatch = document.getElementById('caseControlMatch').checked;
-        let snpsInfo, predictedIncidenceRate, k, b;
+        const buildInput = document.querySelector('input[name="build"]:checked')?.value;
+        const numberOfProfiles = document.getElementById('numberOfProfiles').value.trim();
+        const caseControlRatio = 0.5;//document.getElementById('numberOfProfiles').value.trim();
+        const minAge = document.getElementById('minAge').value.trim();
+        const maxAge = document.getElementById('maxAge').value.trim();
+        const minFollowUp = document.getElementById('minFollowUp').value.trim();
+        const maxFollowUp = document.getElementById('maxFollowUp').value.trim();
+        const caseControlMatch = document.getElementById('caseControlMatch')?.checked; // updated ID if relevant
+
+
+        if (!/^(PGS\d{6}|\d{1,6})$/.test(pgsIdInput)) {
+            alert('Please enter a valid PGS ID (e.g., PGS000123 or 123).');
+            return;
+        }
+
+        if (!buildInput) {
+            alert('Please select a genome build.');
+            return;
+        }
+
+        if (!numberOfProfiles || isNaN(numberOfProfiles) || Number(numberOfProfiles) <= 0) {
+            alert('Please enter a valid number of profiles.');
+            return;
+        }
+
+        if (!minAge || isNaN(minAge) || !maxAge || isNaN(maxAge) || Number(minAge) < 0 || Number(maxAge) < Number(minAge)) {
+            alert('Please enter a valid age range.');
+            return;
+        }
+
+        if (!minFollowUp || isNaN(minFollowUp) || !maxFollowUp || isNaN(maxFollowUp) || Number(minFollowUp) < 0 || Number(maxFollowUp) < Number(minFollowUp)) {
+            alert('Please enter a valid follow-up range.');
+            return;
+        }
+
+        if (!loadingScreen.style) {
+            console.error('Error: HTML element not found');
+        }
 
         loadingScreen.style.display = 'flex';
-        /* global localforage */
-        // TODO: remove this
+
+        // TODO: Remove in production
         await localforage.clear();
+
+        let snpsInfo, predictedIncidenceRate, k, b;
 
         try {
             ({ snpsInfo, predictedIncidenceRate, k, b } = await handleSnpsInfo(
@@ -137,16 +174,35 @@ export function initializeUI(config) {
             console.error(error.message);
             alert('Failed to load SNPs info: ' + error.message);
             loadingScreen.style.display = 'none';
-
             return;
         }
 
         try {
+
+
             if (caseControlMatch) {
-                await handleCaseControlRetrieval(snpsInfo, k, b, incidenceRateFile, pgsModelFile, loadingScreen, renderData);
+                const config = {
+                    totalProfiles: Number(numberOfProfiles),
+                    chunkSize: 25_000,
+                    minAge: Number(minAge),
+                    maxAge: Number(maxAge),
+                    minFollowUp: Number(minFollowUp),
+                    maxFollowUp: Number(maxFollowUp)
+                };
+
+                await handleCaseControlRetrieval(config, caseControlRatio, snpsInfo, k, b, incidenceRateFile, pgsModelFile, loadingScreen, renderData);
             }
             else {
-                await handleProfileRetrieval(snpsInfo, k, b, incidenceRateFile, pgsModelFile, loadingScreen, renderData);
+                const config = {
+                    totalProfiles: Number(numberOfProfiles),
+                    chunkSize: 25_000,
+                    minAge: Number(minAge),
+                    maxAge: Number(maxAge),
+                    minFollowUp: Number(minFollowUp),
+                    maxFollowUp: Number(maxFollowUp)
+                };
+
+                await handleProfileRetrieval(config, snpsInfo, k, b, incidenceRateFile, pgsModelFile, loadingScreen, renderData);
             }
         } catch (error) {
             console.error(error.message);

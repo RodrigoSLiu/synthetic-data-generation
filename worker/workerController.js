@@ -33,12 +33,13 @@ export async function handleSnpsInfo(pgsIdInput, buildInput, incidenceRateFile, 
 }
 
 
-export async function handleProfileRetrieval(snpsInfo, k, b, incidenceRateFile, pgsModelFile, loadingScreen, onComplete) {
+export async function handleProfileRetrieval(config, snpsInfo, k, b, incidenceRateFile, pgsModelFile, loadingScreen, onComplete) {
     /* global localforage */
     loadingScreen.style.display = 'flex';
-    const CHUNK_SIZE = 25_000;
-    const totalProfiles = 1_000_000;
-    const totalChunks = Math.ceil(totalProfiles / CHUNK_SIZE);
+    const {
+        totalProfiles, chunkSize, minAge, maxAge, minFollowUp, maxFollowUp
+    } = config;
+    const totalChunks = Math.ceil(totalProfiles / chunkSize);
     const workersCount = 4;
 
     let completed = 0;
@@ -50,7 +51,7 @@ export async function handleProfileRetrieval(snpsInfo, k, b, incidenceRateFile, 
             workerId: i,
             snpsInfo,
             totalChunks,
-            chunkSize: CHUNK_SIZE,
+            chunkSize: chunkSize,
             chunkOffset: i, // So each worker starts at different points
             totalWorkers: workersCount,
             minAge: 30,
@@ -88,14 +89,14 @@ export async function handleProfileRetrieval(snpsInfo, k, b, incidenceRateFile, 
 
 
 export async function handleCaseControlRetrieval(
-    snpsInfo, k, b, incidenceRateFile, pgsModelFile, loadingScreen, onComplete
+    config, caseControlRatio, snpsInfo, k, b, incidenceRateFile, pgsModelFile, loadingScreen, onComplete
 ) {
-    const CHUNK_SIZE = 25_000;
-    const TOTAL_PROFILES = 500_000;
-    const CASE_CONTROL_RATIO = 0.2;
-    const TARGET_CASES = TOTAL_PROFILES * CASE_CONTROL_RATIO;
+    const {
+        totalProfiles, chunkSize, minAge, maxAge, minFollowUp, maxFollowUp
+    } = config;
+    const targetCases = totalProfiles * caseControlRatio;
     const numberOfWorkers = 4;
-    const CASES_PER_WORKER = Math.ceil(TARGET_CASES / numberOfWorkers);
+    const casesPerWorker = Math.ceil(targetCases / numberOfWorkers);
 
     loadingScreen.style.display = 'flex';
 
@@ -108,9 +109,9 @@ export async function handleCaseControlRetrieval(
         caseControlWorker.postMessage({
             workerId: i,
             snpsInfo,
-            chunkSize: CHUNK_SIZE,
-            numberOfProfiles: TOTAL_PROFILES,
-            caseControlRatio: CASE_CONTROL_RATIO,
+            chunkSize: chunkSize,
+            numberOfProfiles: totalProfiles,
+            caseControlRatio: caseControlRatio,
             minAge: 30,
             maxAge: 70,
             minFollow: 15,

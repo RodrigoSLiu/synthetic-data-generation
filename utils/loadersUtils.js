@@ -1,4 +1,4 @@
-import { httpRequest } from '../utils/httpUtils.js';
+import { httpRequest } from './httpUtils.js';
 
 export async function loadScript(url) {
     return new Promise((resolve, reject) => {

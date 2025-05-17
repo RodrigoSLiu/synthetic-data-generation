@@ -1,6 +1,6 @@
 // main.js
 
-import { loadDependencies } from './data-generator/loaders.js';
+import { loadDependencies } from './utils/loadersUtils.js';
 import { initializeUI } from './ui/uiHandlers.js';
 
 // URLs of external dependencies

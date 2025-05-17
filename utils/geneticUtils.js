@@ -1,9 +1,9 @@
 import { asyncPool, httpRequest } from './httpUtils.js';
 import { sleep } from './generalUtils.js';
-import { parseFile } from '../data-generator/fileParser.js';
+import { parseFile } from './fileParser.js';
 import { processSnpData } from './dataProcessingUtils.js';
 
-import { nelderMead } from '../data-generator/nelderMead.js';
+import { nelderMead } from './nelderMead.js';
 
 
 export async function getRsIds(snpsInfo, apiKey) {
