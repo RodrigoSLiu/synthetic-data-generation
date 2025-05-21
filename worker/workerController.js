@@ -6,12 +6,11 @@ export function updateLoadingProgress(percentage) {
 }
 
 
-export async function handleSnpsInfo(pgsIdInput, buildInput, incidenceRateFile, pgsModelFile) {
+export async function handleSnpsInfo(pgsIdInput, incidenceRateFile, pgsModelFile) {
     return new Promise((resolve, reject) => {
         const snpWorker = new Worker('worker/snpsWorker.js');
         snpWorker.postMessage({
             pgsId: pgsIdInput,
-            build: buildInput,
             incidenceRateFile,
             pgsModelFile
         });
@@ -39,8 +38,8 @@ export async function handleProfileRetrieval(config, snpsInfo, k, b, incidenceRa
     const {
         totalProfiles, chunkSize, minAge, maxAge, minFollowUp, maxFollowUp
     } = config;
-    const totalChunks = Math.ceil(totalProfiles / chunkSize);
-    const workersCount = 4;
+    const totalChunks = 1;//Math.ceil(totalProfiles / chunkSize);
+    const workersCount = 1;
 
     let completed = 0;
 
@@ -54,10 +53,10 @@ export async function handleProfileRetrieval(config, snpsInfo, k, b, incidenceRa
             chunkSize: chunkSize,
             chunkOffset: i, // So each worker starts at different points
             totalWorkers: workersCount,
-            minAge: 30,
-            maxAge: 70,
-            minFollow: 15,
-            maxFollow: 30,
+            minAge: minAge,
+            maxAge: maxAge,
+            minFollow: minFollowUp,
+            maxFollow: maxFollowUp,
             k,
             b
         });
@@ -112,10 +111,10 @@ export async function handleCaseControlRetrieval(
             chunkSize: chunkSize,
             numberOfProfiles: totalProfiles,
             caseControlRatio: caseControlRatio,
-            minAge: 30,
-            maxAge: 70,
-            minFollow: 15,
-            maxFollow: 30,
+            minAge: minAge,
+            maxAge: maxAge,
+            minFollow: minFollowUp,
+            maxFollow: maxFollowUp,
             k,
             b
         });

@@ -1,9 +1,7 @@
-// main.js
-
 import { loadDependencies } from './utils/loadersUtils.js';
 import { initializeUI } from './ui/uiHandlers.js';
+import { initializeRouting, handleRouting } from './ui/routing.js';
 
-// URLs of external dependencies
 const dependencyUrls = [
     'https://cdnjs.cloudflare.com/ajax/libs/pako/1.0.11/pako.min.js',
     'https://cdnjs.cloudflare.com/ajax/libs/localforage/1.9.0/localforage.min.js'
@@ -21,9 +19,11 @@ const config = {
 (async function main() {
     try {
         await loadDependencies(dependencyUrls);
-        initializeUI(config);
+        initializeRouting(); // Initialize first
+        initializeUI(config); // Then set up UI
+        window.addEventListener('popstate', handleRouting);
     } catch (error) {
         console.error('Initialization failed:', error);
-        alert('Error initializing application. Check console for details.');
+        alert(`Error: ${error.message}`);
     }
 })();

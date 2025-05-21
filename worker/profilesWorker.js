@@ -13,8 +13,7 @@ self.onmessage = async (e) => {
         const {
             processProfiles
         } = await import('../syntheticDataGenerator.js');
-
-        const { deflate } = await import('https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.esm.mjs');
+        /* global localforage, pako */
 
         const workerChunks = [];
         for (let i = chunkOffset; i < totalChunks; i += totalWorkers) {
@@ -35,9 +34,8 @@ self.onmessage = async (e) => {
                 b
             );
 
-            const compressed = deflate(JSON.stringify(chunkData));
+            const compressed = pako.deflate(JSON.stringify(chunkData));
 
-            /* global localforage */
             await localforage.setItem(
                 `worker_${workerId}_chunk_${chunkIndex}`,
                 compressed

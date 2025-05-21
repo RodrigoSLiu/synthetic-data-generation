@@ -117,7 +117,6 @@ export function initializeUI(config) {
     document.getElementById('retrieveButton').addEventListener('click', async () => {
         const loadingScreen = document.getElementById('loadingScreen');
         const pgsIdInput = document.getElementById('pgsId').value.trim();
-        const buildInput = document.querySelector('input[name="build"]:checked')?.value;
         const numberOfProfiles = document.getElementById('numberOfProfiles').value.trim();
         const caseControlRatio = 0.5;//document.getElementById('numberOfProfiles').value.trim();
         const minAge = document.getElementById('minAge').value.trim();
@@ -126,14 +125,8 @@ export function initializeUI(config) {
         const maxFollowUp = document.getElementById('maxFollowUp').value.trim();
         const caseControlMatch = document.getElementById('caseControlMatch')?.checked; // updated ID if relevant
 
-
         if (!/^(PGS\d{6}|\d{1,6})$/.test(pgsIdInput)) {
             alert('Please enter a valid PGS ID (e.g., PGS000123 or 123).');
-            return;
-        }
-
-        if (!buildInput) {
-            alert('Please select a genome build.');
             return;
         }
 
@@ -166,7 +159,6 @@ export function initializeUI(config) {
         try {
             ({ snpsInfo, predictedIncidenceRate, k, b } = await handleSnpsInfo(
                 pgsIdInput,
-                buildInput,
                 incidenceRateFile,
                 pgsModelFile
             ));
@@ -178,8 +170,6 @@ export function initializeUI(config) {
         }
 
         try {
-
-
             if (caseControlMatch) {
                 const config = {
                     totalProfiles: Number(numberOfProfiles),

@@ -1,3 +1,4 @@
+export * from './ui/routing.js';
 export * from './utils/geneticUtils.js';
 export * from './utils/dataProcessingUtils.js';
 export * from './utils/draw.js';

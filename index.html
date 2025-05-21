@@ -9,6 +9,23 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
+
+<!-- Header -->
+<header class="header">
+    <nav class="main-nav">
+        <div class="logo">
+            <i class="fas fa-dna"></i>
+            <span>Synthetic Data Generator</span>
+        </div>
+
+        <ul class="nav-links">
+            <li><a href="#" data-page="prospective">Prospective Cohort</a></li>
+            <li><a href="#" data-page="retrospective">Retrospective Cohort</a></li>
+            <li><a href="#" data-page="tutorial">Tutorial</a></li>
+        </ul>
+    </nav>
+</header>
+
 <!-- Loading Screen -->
 <div id="loadingScreen">
     <div id="progressBarContainer">
@@ -17,33 +34,17 @@
     <div id="loadingText">Generating data... Please wait</div>
 </div>
 
-<!-- Header -->
-<header class="header">
-    <h1><i class="fas fa-dna"></i> PGS Data Visualization</h1>
-</header>
-
 <!-- Main Content -->
 <main>
-    <section>
+    <!-- Prospective Cohort Page -->
+    <section id="prospective" class="page active">
         <div class="input-group">
             <label for="pgsId">PGS ID:</label>
             <input type="text" id="pgsId" placeholder="PGS000004" value="PGS000004">
         </div>
 
-        <fieldset>
-            <legend>Genome Build</legend>
-            <div class="input-group">
-                <label>
-                    <input type="radio" name="build" value="37"> GRCh37
-                </label>
-                <label>
-                    <input type="radio" name="build" value="38" checked> GRCh38
-                </label>
-            </div>
-        </fieldset>
-
         <div class="input-group">
-            <label for="numberOfProfiles">Profiles:</label>
+            <label for="numberOfProfiles">Number of Profiles:</label>
             <input type="number" id="numberOfProfiles" value="1000" min="100" max="10000">
         </div>
 
@@ -65,33 +66,59 @@
             </div>
         </div>
 
-        <div class="input-group">
-            <label for="caseControlMatch" class="checkbox-label">
-                <input type="checkbox" id="caseControlMatch" checked>
-                Case Control Retrospective Cohort?
-            </label>
-        </div>
-
         <button id="retrieveButton" class="button primary-button">
             <i class="fas fa-rocket"></i> Generate Data
         </button>
+
+        <section class="results">
+            <h2>Incidence Rates</h2>
+            <canvas id="expectedIncidenceChart"></canvas>
+
+            <div class="downloads">
+                <button id="downloadProfiles" class="button">
+                    <i class="fas fa-download"></i> Download Profiles
+                </button>
+                <button id="downloadCaseControl" class="button">
+                    <i class="fas fa-balance-scale"></i> Case-Control Data
+                </button>
+                <button id="downloadVCF" class="button">
+                    <i class="fas fa-file-code"></i> Export VCF
+                </button>
+            </div>
+        </section>
     </section>
 
-    <section>
-        <h2>Incidence Rates</h2>
-        <canvas id="expectedIncidenceChart"></canvas>
+    <!-- Retrospective Cohort Page -->
+    <section id="retrospective" class="page">
+        <div class="retrospective-form">
+            <div class="input-group">
+                <label for="retrospectivePgsId">PGS ID:</label>
+                <input type="text" id="retrospectivePgsId" placeholder="PGS000004" value="PGS000004">
+            </div>
+
+            <!-- Add retrospective-specific form elements here -->
+            <div class="input-group">
+                <label for="caseControlRatio">Case-Control Ratio:</label>
+                <input type="number" id="caseControlRatio" value="0.5" min="0.1" max="0.9" step="0.1">
+            </div>
+
+            <!-- Reuse common components -->
+            <button id="retrospectiveGenerate" class="button primary-button">
+                <i class="fas fa-brain"></i> Generate Case-Control Data
+            </button>
+        </div>
     </section>
 
-    <section class="downloads">
-        <button id="downloadProfiles" class="button">
-            <i class="fas fa-download"></i> Download Profiles
-        </button>
-        <button id="downloadCaseControl" class="button">
-            <i class="fas fa-balance-scale"></i> Case-Control Data
-        </button>
-        <button id="downloadVCF" class="button">
-            <i class="fas fa-file-code"></i> Export VCF
-        </button>
+    <!-- Tutorial Page -->
+    <section id="tutorial" class="page">
+        <article class="tutorial-content">
+            <h2>Getting Started Guide</h2>
+            <div class="tutorial-step">
+                <h3>1. Select Cohort Type</h3>
+                <p>Choose between prospective or retrospective cohort generation...</p>
+            </div>
+            <!-- Add more tutorial steps -->
+        </article>
     </section>
 </main>
 

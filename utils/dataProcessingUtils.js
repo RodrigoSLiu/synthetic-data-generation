@@ -116,6 +116,10 @@ export async function processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge
     let numberOfCases = 0;
 
     // Stats
+    let ages = {};
+    for (let i = minAge; i <= maxAge; i++) {
+        ages[i] = 0;
+    }
     let maxPrs = 0;
     let maxIsCase = false;
     let minPrs = 0;
@@ -136,6 +140,7 @@ export async function processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge
             return dosage;
         });
         const ageOfEntry = getRandomInt(minAge, maxAge);
+        ages[ageOfEntry] += 1;
         const ageOfExit = ageOfEntry + getRandomInt(minFollowUp, maxFollowUp);
         const rawOnset = calculateTimeDiseaseOnset(ageOfEntry, prs, k, b);
         const isCase = Number.isFinite(rawOnset) &&
@@ -174,7 +179,7 @@ export async function processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge
 
         data.push(profileArray);
     }
-
+    console.log(ages);
     console.log(
         `Profiles creation complete:\n` +
         `   - Average total prs: ${totalAvg / numberOfProfiles}\n` +

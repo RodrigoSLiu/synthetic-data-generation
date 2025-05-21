@@ -23,7 +23,9 @@ import {
     downloadFile,
     processHeader,
     handleSnpsInfo,
-    downloadProfilesFromChunks
+    downloadProfilesFromChunks,
+    initializeRouting,
+    handleRouting
 } from './index.js';
 
 export {
@@ -51,5 +53,7 @@ export {
     downloadFile,
     processHeader,
     handleSnpsInfo,
-    downloadProfilesFromChunks
+    downloadProfilesFromChunks,
+    initializeRouting,
+    handleRouting
 };

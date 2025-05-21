@@ -21,17 +21,66 @@ body {
 /* ======================
    HEADER STYLES
    ====================== */
-.header {
-    text-align: center;
-    padding: 2rem 0;
-    border-bottom: 3px solid var(--secondary);
-    margin-bottom: 2rem;
+/* ======================
+   HEADER & NAVIGATION
+   ====================== */
+.main-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background: var(--primary);
+    color: white;
 }
 
-.header h1 {
-    color: var(--primary);
-    font-size: 2.5rem;
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 1.4rem;
+    font-weight: 600;
+}
+
+.nav-links {
+    display: flex;
+    gap: 2rem;
+    list-style: none;
     margin: 0;
+    padding: 0;
+}
+
+.nav-links a {
+    color: white;
+    text-decoration: none;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.nav-links a:hover {
+    background: rgba(255, 255, 255, 0.1);
+    text-decoration: underline;
+}
+
+.nav-links .active {
+    color: var(--secondary);
+    text-decoration: underline;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .main-nav {
+        flex-direction: column;
+        padding: 1rem;
+    }
+
+    .nav-links {
+        margin-top: 1rem;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1rem;
+    }
 }
 
 /* ======================
@@ -78,6 +127,25 @@ label {
     margin-bottom: 0.5rem;
     font-weight: 700;
     color: var(--primary);
+}
+
+.age-range,
+.followUp-range {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.age-range input,
+.followUp-range input {
+    width: 100px; /* Adjust as needed */
+    flex: 1;
+}
+
+.age-range span,
+.followUp-range span {
+    color: #666;
+    margin: 0 0.5rem;
 }
 
 /* ======================
@@ -156,4 +224,35 @@ label {
     input[type="number"] {
         padding: 10px 15px;
     }
+}
+
+/* ======================
+   PAGE TRANSITIONS
+   ====================== */
+.page {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.page.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.results {
+    margin-top: 2rem;
+    padding: 2rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
