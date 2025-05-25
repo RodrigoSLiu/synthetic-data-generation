@@ -88,12 +88,12 @@ export async function handleProfileRetrieval(config, snpsInfo, k, b, incidenceRa
 
 
 export async function handleCaseControlRetrieval(
-    config, caseControlRatio, snpsInfo, k, b, incidenceRateFile, pgsModelFile, loadingScreen, onComplete
+    config, controlsPerCase, snpsInfo, k, b, incidenceRateFile, pgsModelFile, loadingScreen, onComplete
 ) {
     const {
         totalProfiles, chunkSize, minAge, maxAge, minFollowUp, maxFollowUp
     } = config;
-    const targetCases = totalProfiles * caseControlRatio;
+    const targetCases = totalProfiles;
     const numberOfWorkers = 4;
     const casesPerWorker = Math.ceil(targetCases / numberOfWorkers);
 
@@ -109,8 +109,8 @@ export async function handleCaseControlRetrieval(
             workerId: i,
             snpsInfo,
             chunkSize: chunkSize,
-            numberOfProfiles: totalProfiles,
-            caseControlRatio: caseControlRatio,
+            numberOfCases: casesPerWorker,
+            controlsPerCase: controlsPerCase,
             minAge: minAge,
             maxAge: maxAge,
             minFollow: minFollowUp,

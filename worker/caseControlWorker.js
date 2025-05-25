@@ -5,7 +5,7 @@ importScripts(
 
 self.onmessage = async (e) => {
     const {
-        workerId, snpsInfo, chunkSize, numberOfProfiles, caseControlRatio = 0.5,
+        workerId, snpsInfo, chunkSize, numberOfCases, controlsPerCase,
         minAge, maxAge, minFollow, maxFollow, k, b
     } = e.data;
 
@@ -16,8 +16,6 @@ self.onmessage = async (e) => {
         let chunkIndex = 0;
         let profileIdOffset = 0;
         const isCaseIdx = 4;
-        const numberOfCases = numberOfProfiles * caseControlRatio;
-        const controlsPerCase = (numberOfProfiles - numberOfCases) / numberOfCases;
 
         // Pools to hold unmatched cases and controls
         let casesPool = [];
@@ -38,9 +36,7 @@ self.onmessage = async (e) => {
             controlsPool = profiles.filter(p => p[isCaseIdx] === 0);
 
             const {
-                results,
-                unusedCases,
-                unusedControls
+                results
             } = matchCasesControls(casesPool, controlsPool, controlsPerCase);
             const compressed = pako.deflate(JSON.stringify(results));
 
@@ -50,7 +46,7 @@ self.onmessage = async (e) => {
             profileIdOffset += chunkSize;
             chunkIndex++;
 
-            const progress = Math.min(100, Math.floor((generatedCases / numberOfProfiles) * 100));
+            const progress = Math.min(100, Math.floor((generatedCases / numberOfCases) * 100));
             self.postMessage({ type: 'progress', progress });
         }
 

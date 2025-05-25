@@ -76,13 +76,10 @@
 
             <div class="downloads">
                 <button id="downloadProfiles" class="button">
-                    <i class="fas fa-download"></i> Download Profiles
+                    <i class="fas fa-download"></i> Export All Profiles As CSV
                 </button>
-                <button id="downloadCaseControl" class="button">
-                    <i class="fas fa-balance-scale"></i> Case-Control Data
-                </button>
-                <button id="downloadVCF" class="button">
-                    <i class="fas fa-file-code"></i> Export VCF
+                <button id="downloadProspectiveVCF" class="button">
+                    <i class="fas fa-file-code"></i> Export All Profiles As VCF
                 </button>
             </div>
         </section>
@@ -96,16 +93,54 @@
                 <input type="text" id="retrospectivePgsId" placeholder="PGS000004" value="PGS000004">
             </div>
 
-            <!-- Add retrospective-specific form elements here -->
+            <!-- Retrospective Number of Profiles -->
             <div class="input-group">
-                <label for="caseControlRatio">Case-Control Ratio:</label>
-                <input type="number" id="caseControlRatio" value="0.5" min="0.1" max="0.9" step="0.1">
+                <label for="retrospectiveNumberOfProfiles">Number of Cases:</label>
+                <input type="number" id="retrospectiveNumberOfProfiles" value="1000" min="100" max="1000000">
             </div>
 
-            <!-- Reuse common components -->
+            <!-- Add retrospective-specific form elements here -->
+            <div class="input-group">
+                <label for="controlsPerCase">Number of Controls per Case:</label>
+                <input type="number" id="controlsPerCase" value="1" min="1" max="50" step="1">
+            </div>
+
+            <!-- Retrospective Age Range -->
+            <div class="input-group">
+                <label for="retrospectiveMinAge">Age Range:</label>
+                <div class="age-range">
+                    <input type="number" id="retrospectiveMinAge" placeholder="Min Age" value="30">
+                    <span>to</span>
+                    <input type="number" id="retrospectiveMaxAge" placeholder="Max Age" value="80">
+                </div>
+            </div>
+
+            <!-- Retrospective Follow-up -->
+            <div class="input-group">
+                <label for="retrospectiveMinFollowUp">Follow-up (years):</label>
+                <div class="followUp-range">
+                    <input type="number" id="retrospectiveMinFollowUp" placeholder="Min Follow Up" value="15" min="1"
+                           max="50">
+                    <span>to</span>
+                    <input type="number" id="retrospectiveMaxFollowUp" placeholder="Max Follow Up" value="30" min="1"
+                           max="50">
+                </div>
+            </div>
+
             <button id="retrospectiveGenerate" class="button primary-button">
                 <i class="fas fa-brain"></i> Generate Case-Control Data
             </button>
+
+            <br>
+
+            <div class="downloads">
+                <button id="downloadCaseControl" class="button">
+                    <i class="fas fa-balance-scale"></i> Case-Control Data
+                </button>
+                <button id="downloadRetrospectiveVCF" class="button">
+                    <i class="fas fa-file-code"></i> Export VCF
+                </button>
+            </div>
         </div>
     </section>
 
