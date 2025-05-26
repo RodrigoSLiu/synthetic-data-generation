@@ -1,5 +1,6 @@
 import { handleCaseControlRetrieval, handleProfileRetrieval } from '../worker/workerController.js';
 import { handleSnpsInfo, parseCsv, downloadProfilesFromChunks, downloadFile } from '../syntheticDataGenerator.js';
+import { loadPopulation } from '../utils/loadersUtils.js';
 
 
 async function loadIncidenceChart(incidenceRateFile, predictedData, htmlElement) {
@@ -76,6 +77,8 @@ async function loadIncidenceChart(incidenceRateFile, predictedData, htmlElement)
 
 async function handleDataGeneration({
                                         isRetrospective = false,
+                                        countryISO,
+                                        gender = 'both',
                                         pgsIdInput,
                                         numberOfProfiles,
                                         minAge,
@@ -84,10 +87,16 @@ async function handleDataGeneration({
                                         maxFollowUp,
                                         controlsPerCase = 1
                                     }) {
+    /* global localforage */
     const loadingScreen = document.getElementById('loadingScreen');
 
     if (!/^(PGS\d{6}|\d{1,6})$/.test(pgsIdInput)) {
         alert('Please enter a valid PGS ID (e.g., PGS000123 or 123).');
+        return;
+    }
+
+    if (!countryISO) {
+        alert('Please select a country first to load population data.');
         return;
     }
 
@@ -206,9 +215,20 @@ export function initializeUI(config) {
     //     downloadFile(vcfDataCsv, 'genetic_vcf', 'vcf');
     // });
 
+    document.getElementById('countrySelect').addEventListener('change', async (e) => {
+        const countryISO = e.target.value;
+
+        if (countryISO) {
+            const ageData = await loadPopulation(countryISO);
+            await localforage.setItem('populationData', ageData);
+        }
+    });
+
     document.getElementById('retrieveButton').addEventListener('click', async () => {
         await handleDataGeneration({
             isRetrospective: false,
+            countryISO: document.getElementById('countrySelect').value.trim(),
+            gender: document.getElementById('genderSelect').value.trim(),
             pgsIdInput: document.getElementById('pgsId').value.trim(),
             numberOfProfiles: document.getElementById('numberOfProfiles').value.trim(),
             minAge: document.getElementById('minAge').value.trim(),
@@ -219,8 +239,12 @@ export function initializeUI(config) {
     });
 
     document.getElementById('retrospectiveGenerate').addEventListener('click', async () => {
+        const selectedCountryCode = document.getElementById('countrySelect').value;
+
         await handleDataGeneration({
             isRetrospective: true,
+            countryISO: document.getElementById('countrySelect').value.trim(),
+            gender: document.getElementById('genderSelect').value.trim(),
             pgsIdInput: document.getElementById('pgsId').value.trim(),
             numberOfProfiles: document.getElementById('retrospectiveNumberOfProfiles').value.trim(),
             minAge: document.getElementById('retrospectiveMinAge').value.trim(),

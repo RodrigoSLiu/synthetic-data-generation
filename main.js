@@ -1,4 +1,4 @@
-import { loadDependencies } from './utils/loadersUtils.js';
+import { loadCountries, loadDependencies } from './utils/loadersUtils.js';
 import { initializeUI } from './ui/uiHandlers.js';
 import { initializeRouting, handleRouting } from './ui/routing.js';
 
@@ -21,6 +21,7 @@ const config = {
         await loadDependencies(dependencyUrls);
         initializeRouting(); // Initialize first
         initializeUI(config); // Then set up UI
+        await loadCountries();
         window.addEventListener('popstate', handleRouting);
     } catch (error) {
         console.error('Initialization failed:', error);
