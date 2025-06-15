@@ -6,7 +6,6 @@
     <title>PGS Data Visualization</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
@@ -15,11 +14,11 @@
     <nav class="main-nav">
         <div class="logo">
             <i class="fas fa-dna"></i>
-            <span>Synthetic Data Generator</span>
+            <span>SynthGWAS</span>
         </div>
 
         <ul class="nav-links">
-            <li><a href="#" data-page="prospective">Prospective Cohort</a></li>
+            <li><a href="#" data-page="prospective" class="active">Prospective Cohort</a></li>
             <li><a href="#" data-page="retrospective">Retrospective Cohort</a></li>
             <li><a href="#" data-page="tutorial">Tutorial</a></li>
         </ul>
@@ -34,146 +33,244 @@
     <div id="loadingText">Generating data... Please wait</div>
 </div>
 
+<!-- Shared Parameters -->
+<section id="sharedParameters" class="shared-params">
+    <div class="input-group">
+        <div class="alert hidden" id="alert-country">Please select a country first to load population data.</div>
+        <label for="countrySelect">Country:</label>
+        <select id="countrySelect" class="country-select">
+            <option value="" disabled selected hidden>Loading Countries...</option>
+        </select>
+    </div>
+
+    <div class="input-group">
+        <div class="alert hidden" id="alert-age">Please enter a valid age</div>
+        <label for="genderSelect">Gender:</label>
+        <select id="genderSelect" class="gender-select">
+            <option value="" disabled selected hidden>Loading Genders...</option>
+        </select>
+    </div>
+
+    <div class="input-group">
+        <div class="alert hidden" id="alert-pgs">Please enter a valid PGS ID (e.g., PGS000123 or 123).</div>
+        <label for="pgsId">PGS ID:</label>
+        <input type="text" id="pgsId" placeholder="PGS000004" value="PGS000004">
+    </div>
+
+    <div class="input-group">
+        <div class="alert hidden" id="alert-age-range">Please enter a valid age range.</div>
+        <label for="minAge">Age Range:</label>
+        <div class="age-range">
+            <input type="number" id="minAge" placeholder="Min Age" value="30">
+            <span>to</span>
+            <input type="number" id="maxAge" placeholder="Max Age" value="80">
+        </div>
+    </div>
+
+    <div class="input-group">
+        <div class="alert hidden" id="alert-age-follow">Please enter a valid follow-up range.</div>
+        <label for="minFollowUp">Follow-up (years):</label>
+        <div class="followUp-range">
+            <input type="number" id="minFollowUp" placeholder="Min Follow Up" value="15" min="1" max="50">
+            <span>to</span>
+            <input type="number" id="maxFollowUp" placeholder="Max Follow Up" value="30" min="1" max="50">
+        </div>
+    </div>
+</section>
+
 <!-- Main Content -->
 <main>
+    <!-- Tutorial Page -->
+    <section id="tutorial" class="page">
+        <article class="tutorial-content">
+            <h2>Getting Started Guide</h2>
+
+            <div class="tutorial-step">
+                <h3>1. Select Cohort Type</h3>
+                <p>Begin by choosing the type of cohort you want to simulate:
+                    <strong>Prospective</strong> or <strong>Retrospective</strong>.
+                </p>
+            </div>
+
+            <div class="tutorial-step">
+                <h3>2. Define Shared Parameters</h3>
+                <p>Regardless of the chosen cohort type, you'll need to configure the following:</p>
+                <ul>
+                    <li><strong>Country:</strong> Select the country whose age distribution will be used for generating
+                        study entry ages.
+                    </li>
+                    <li><strong>Gender:</strong> Choose the biological sex (Male, Female or Both) for the cohort.</li>
+                    <li><strong>PGS ID:</strong> Provide a Polygenic Score identifier from the
+                        <a href="https://www.pgscatalog.org/" target="_blank">PGS Catalog</a>, such as
+                        <code>PGS000004</code> or simply <code>4</code>.
+                    </li>
+                    <li><strong>Age of Entry Range:</strong> Define the lower and upper bounds for the entry age of each profile.
+                    </li>
+                    <li><strong>Follow-up Interval:</strong> Set the minimum and maximum number of years each profile
+                        will be followed after study entry.
+                    </li>
+                </ul>
+            </div>
+
+            <div class="tutorial-step">
+                <h3>3. Cohort-Specific Settings</h3>
+                <p>Depending on the selected cohort type, specify the appropriate parameters:</p>
+                <ul>
+                    <li><strong>Prospective Cohort:</strong> Choose the number of profiles to be generated.</li>
+                    <li><strong>Retrospective Cohort:</strong> Specify the number of <strong>cases</strong> and how many
+                        <strong>controls per case</strong> should be matched.
+                    </li>
+                </ul>
+            </div>
+
+            <div class="tutorial-step">
+                <h3>4. Generate Data</h3>
+                <p>Click the <strong>Generate Data</strong> button to begin the data synthesis process. This may take a
+                    few moments depending on the size of the dataset.</p>
+            </div>
+
+            <div class="tutorial-step">
+                <h3>5. View Statistics and Download Results</h3>
+                <p>Once generation is complete, you can:</p>
+                <ul>
+                    <li>Inspect summary statistics such as the <strong>real-world incidence rate</strong> and the
+                        <strong>incidence rate estimated via Cox proportional hazard modeling</strong>.
+                    </li>
+                    <li>Download the output in your preferred format:</li>
+                    <ul>
+                        <li><strong>Prospective Cohort:</strong> All generated profiles in CSV or VCF format.</li>
+                        <li><strong>Retrospective Cohort:</strong> Matched case-control pairs in CSV or VCF format.</li>
+                    </ul>
+                </ul>
+            </div>
+
+            <hr>
+            <h2>Methodology</h2>
+
+            <p>
+                <strong>Parameters:</strong>
+            <ul>
+                <li><strong>Country:</strong> An API request is made to the <a href="https://www.worldbank.org/" target="_blank">World Bank</a> to retrieve the list of countries with available demographic data.</li>
+            </ul>
+            <ul>
+                <li><strong>PGS ID:</strong> An API request is made to the <a href="https://ftp.ebi.ac.uk/pub/databases/spot/pgs/scores" target="_blank">PGS Catalog</a>. The corresponding score file is retrieved and fully parsed to extract variant identifiers, allele frequencies, and their associated effect sizes.</li>
+            </ul>
+            <ul>
+                <li><strong>Age of Entry:</strong> An API request is made to the <a href="https://www.worldbank.org/" target="_blank">World Bank</a> to retrieve the age distribution for the specified country. The distribution is separated by gender, and each age bin represents the percentage of the total population of that gender. This allows sampling within the selected age interval based on realistic demographic proportions.</li>
+                <ul>
+                    <li><strong>Male and Female: </strong> For the selected age interval, the percentage distribution is used across age bins and normalize it so the values sum to 100%. These percentages are then multiplied by the total population of the selected gender to estimate the number of individuals in each age bin.</li>
+                    <li><strong>Both:</strong> The gender distribution percentages are used to split the total number of synthetic profiles between males and females. Then, for each gender, the age bin allocation follows the same methodology as described for a single gender.</li>
+                </ul>
+            </ul>
+            <ul>
+                <li><strong>Follow-up Period:</strong> For each synthetic profile, a follow-up duration is sampled uniformly from the specified interval.</li>
+            </ul>
+            </p>
+
+            <div class="tutorial-step">
+                <h3>Prospective Cohort Generation:</h3>
+                <p>For a detailed explanation of how prospective cohorts are simulated using incidence rates, PGS data,
+                    and age-based risk models, please refer to
+                    <a href="https://observablehq.com/d/26478eba9074ea56" target="_blank">Prospective Cohort
+                        Methodology</a>.
+                </p>
+            </div>
+
+            <div class="tutorial-step">
+                <h3>Retrospective Cohort Generation:</h3>
+                <p>
+                    In retrospective simulation, we begin by generating a specified number of <em>cases</em> using synthetic
+                    profiles that have developed the disease within their follow-up period, according to their
+                    age, polygenic risk score, and population-specific incidence rate.
+                </p>
+
+                <p>
+                    Once the required number of cases is generated, each case is matched with one or more <em>controls</em>
+                    who did not develop the disease during the same follow-up interval. Matching is performed based on age
+                    at entry and gender to maintain comparability. Controls are drawn from the remaining pool of profiles.
+                </p>
+            </div>
+        </article>
+    </section>
+
     <!-- Prospective Cohort Page -->
     <section id="prospective" class="page active">
-        <div class="input-group">
-            <label for="pgsId">PGS ID:</label>
-            <input type="text" id="pgsId" placeholder="PGS000004" value="PGS000004">
-        </div>
-
-        <div class="input-group">
-            <label for="numberOfProfiles">Number of Profiles:</label>
-            <input type="number" id="numberOfProfiles" value="1000" min="100" max="10000">
-        </div>
-
-        <div class="input-group">
-            <label for="minAge">Age Range:</label>
-            <div class="age-range">
-                <input type="number" id="minAge" placeholder="Min Age" value="30">
-                <span>to</span>
-                <input type="number" id="maxAge" placeholder="Max Age" value="80">
+        <div class="form">
+            <div class="input-group">
+                <div class="alert hidden" id="alert-profiles">Please enter a valid number of profiles.</div>
+                <label for="numberOfProfiles">Total Number of Profiles:</label>
+                <input type="number" id="numberOfProfiles" value="1000" min="100" max="10000">
             </div>
+
+            <button id="prospectiveGenerate" class="button primary-button">
+                <i class="fas fa-rocket"></i> Generate Prospective Data
+            </button>
         </div>
-
-        <div class="input-group">
-            <label for="minFollowUp">Follow-up (years):</label>
-            <div class="followUp-range">
-                <input type="number" id="minFollowUp" placeholder="Min Follow Up" value="15" min="1" max="50">
-                <span>to</span>
-                <input type="number" id="maxFollowUp" placeholder="Max Follow Up" value="30" min="1" max="50">
-            </div>
-        </div>
-
-        <button id="retrieveButton" class="button primary-button">
-            <i class="fas fa-rocket"></i> Generate Data
-        </button>
-
-        <section class="results">
-            <h2>Incidence Rates</h2>
-            <canvas id="expectedIncidenceChart"></canvas>
-
-            <div class="downloads">
-                <button id="downloadProfiles" class="button">
-                    <i class="fas fa-download"></i> Export All Profiles As CSV
-                </button>
-                <button id="downloadProspectiveVCF" class="button">
-                    <i class="fas fa-file-code"></i> Export All Profiles As VCF
-                </button>
-            </div>
-        </section>
     </section>
 
     <!-- Retrospective Cohort Page -->
     <section id="retrospective" class="page">
-        <div class="retrospective-form">
+        <div class="form">
             <div class="input-group">
-                <label for="retrospectivePgsId">PGS ID:</label>
-                <input type="text" id="retrospectivePgsId" placeholder="PGS000004" value="PGS000004">
-            </div>
-
-            <!-- Country Selection -->
-            <div class="input-group">
-                <label for="countrySelect">Country:</label>
-                <select id="countrySelect">
-                    <option value="">Loading Countries...</option>
-                </select>
+                <div class="alert hidden" id="alert-cases">Please enter a valid number of cases</div>
+                <label for="numberOfCases">Total Number of Cases:</label>
+                <input type="number" id="numberOfCases" value="1000" min="100" max="10000">
             </div>
 
             <div class="input-group">
-                <label for="genderSelect">Gender:</label>
-                <select id="genderSelect">
-                    <option value="both">Both</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                </select>
-            </div>
-
-            <!-- Retrospective Number of Profiles -->
-            <div class="input-group">
-                <label for="retrospectiveNumberOfProfiles">Number of Cases:</label>
-                <input type="number" id="retrospectiveNumberOfProfiles" value="1000" min="100" max="1000000">
-            </div>
-
-            <!-- Add retrospective-specific form elements here -->
-            <div class="input-group">
+                <div class="alert hidden" id="alert-controls">Please enter a valid number of controls per case</div>
                 <label for="controlsPerCase">Number of Controls per Case:</label>
                 <input type="number" id="controlsPerCase" value="1" min="1" max="50" step="1">
-            </div>
-
-            <!-- Retrospective Age Range -->
-            <div class="input-group">
-                <label for="retrospectiveMinAge">Age Range:</label>
-                <div class="age-range">
-                    <input type="number" id="retrospectiveMinAge" placeholder="Min Age" value="30">
-                    <span>to</span>
-                    <input type="number" id="retrospectiveMaxAge" placeholder="Max Age" value="80">
-                </div>
-            </div>
-
-            <!-- Retrospective Follow-up -->
-            <div class="input-group">
-                <label for="retrospectiveMinFollowUp">Follow-up (years):</label>
-                <div class="followUp-range">
-                    <input type="number" id="retrospectiveMinFollowUp" placeholder="Min Follow Up" value="15" min="1"
-                           max="50">
-                    <span>to</span>
-                    <input type="number" id="retrospectiveMaxFollowUp" placeholder="Max Follow Up" value="30" min="1"
-                           max="50">
-                </div>
             </div>
 
             <button id="retrospectiveGenerate" class="button primary-button">
                 <i class="fas fa-brain"></i> Generate Case-Control Data
             </button>
+        </div>
+    </section>
 
-            <br>
+    <!-- Results Section -->
+    <section id="results" class="results hidden">
+        <div id="prospectiveResults">
+            <div class="charts-scroll-container">
+                <div class="charts-carousel">
+                    <div class="chart-slide">
+                        <h2>Observed vs. Predicted Incidence Rates</h2>
+                        <canvas id="expectedIncidenceChartProspective"></canvas>
+                    </div>
+                    <div class="chart-slide">
+                        <h2>Kaplan-Meier curve for simulated breast cancer prospective cohort</h2>
+                        <div id="kaplanMeierCurve" class="kaplan-meier-container"></div>
+                    </div>
+                </div>
+            </div>
 
-            <div class="downloads">
-                <button id="downloadCaseControl" class="button">
-                    <i class="fas fa-balance-scale"></i> Case-Control Data
-                </button>
-                <button id="downloadRetrospectiveVCF" class="button">
-                    <i class="fas fa-file-code"></i> Export VCF
-                </button>
+            <div class="footer">
+                    <button id="downloadProspective" class="button download-button">
+                        <i class="fas fa-download"></i> Export All Profiles As CSV
+                    </button>
+                    <button id="downloadProspectiveVCF" class="button download-button">
+                        <i class="fas fa-download"></i> Export All Profiles As VCF
+                    </button>
+                    <button id="reset" class="button download-button">
+                        <i class="fas fa-file-code"></i> New Cohort Simulation
+                    </button>
+<!--                <div class="downloadRetrospective">-->
+<!--                    <button id="downloadRetrospective" class="button">-->
+<!--                        <i class="fas fa-balance-scale"></i> Case-Control Data-->
+<!--                    </button>-->
+<!--                    <button id="downloadRetrospectiveVCF" class="button">-->
+<!--                        <i class="fas fa-file-code"></i> Export VCF-->
+<!--                    </button>-->
+<!--                    <button id="resetRetrospective" class="button">-->
+<!--                        <i class="fas fa-file-code"></i> New Cohort Simulation-->
+<!--                    </button>-->
+<!--                </div>-->
             </div>
         </div>
     </section>
 
-    <!-- Tutorial Page -->
-    <section id="tutorial" class="page">
-        <article class="tutorial-content">
-            <h2>Getting Started Guide</h2>
-            <div class="tutorial-step">
-                <h3>1. Select Cohort Type</h3>
-                <p>Choose between prospective or retrospective cohort generation...</p>
-            </div>
-            <!-- Add more tutorial steps -->
-        </article>
-    </section>
 </main>
-
 <script type="module" src="main.js"></script>
 </body>
 </html>

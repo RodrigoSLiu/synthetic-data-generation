@@ -1,9 +1,9 @@
 import { asyncPool, httpRequest } from './httpUtils.js';
-import { sleep } from './generalUtils.js';
+import { downloadCohortFromChunks, sleep } from './generalUtils.js';
 import { parseFile } from './fileParser.js';
 import { processSnpData } from './dataProcessingUtils.js';
-
 import { nelderMead } from './nelderMead.js';
+import { INDEX } from '../constants.js';
 
 
 export async function getRsIds(snpsInfo, apiKey) {
@@ -140,6 +140,149 @@ export function generateWeibullIncidenceCurve(k, b, linearPredictors, maxAge) {
 }
 
 
+export async function generateKaplanMeierData(cohort) {
+    /* global localforage */
+    if (!cohort) {
+        throw new Error('Invalid cohort input');
+    }
+
+    const header = await localforage.getItem('header');
+
+    if (!header) {
+        throw new Error('Header missing');
+    }
+
+    const indices = {
+        ageOfEntry: header.indexOf('ageOfEntry'),
+        ageOfExit: header.indexOf('ageOfExit'),
+        ageOfOnset: header.indexOf('ageOfOnset')
+
+    };
+
+    if (
+        indices.ageOfEntry === -1 ||
+        indices.ageOfExit === -1 ||
+        indices.ageOfOnset === -1
+    ) {
+        throw new Error('Missing required columns in cohort data');
+    }
+
+    const subjects = cohort.map((profile) => {
+        const entryAge = profile[indices.ageOfEntry];
+        const exitAge = profile[indices.ageOfExit];
+        const followup = exitAge - entryAge;
+        const onsetAge = profile[indices.ageOfOnset];
+
+        // The event occurs if time_of_onset <= study_exit_age
+        // timeSinceEntryOfEvent = onsetAge - entryAge
+        const eventTimeSinceEntry = onsetAge - entryAge;
+        const censorTime = followup;  // = exitAge - entryAge
+
+        // Observed time is min(eventTimeSinceEntry, censorTime)
+        const observedTime = Math.min(eventTimeSinceEntry, censorTime);
+
+        // eventIndicator = 1 if onsetAge <= exitAge, 0 otherwise
+        const isEvent = eventTimeSinceEntry <= censorTime ? 1 : 0;
+
+        return {
+            time: observedTime,
+            event: isEvent
+        };
+    });
+
+    // Exclude any negative or zero times (shouldn't happen if T>=entryAge)
+    //    but just in case numeric rounding etc.
+    const cleaned = subjects.filter((subj) => subj.time >= 0);
+
+    // Sort by time ascending
+    cleaned.sort((a, b) => a.time - b.time);
+
+    // Kaplan-Meier calculation
+    //    S(0) = 1
+    //    For each unique event time t_j:
+    //       r_j = number at risk just prior to t_j
+    //       d_j = number of events at t_j
+    //       S(t_j) = S(t_{j-1}) * (1 - d_j / r_j)
+    //
+    //    Greenwood variance:
+    //       var( S(t_j) ) = S(t_j)^2 * sum_{i=1..j} [ d_i / ( r_i * (r_i - d_i) ) ]
+    //    95% CI => S(t_j) +/- 1.96 * sqrt( var( S(t_j) ) )
+
+    let atRisk = cleaned.length;    // at time=0
+    let prevSurv = 1.0;            // S(0)
+    let prevVarTerm = 0.0;         // sum_{i} [ d_i / (r_i*(r_i - d_i)) ]
+
+    const kmData = [];
+    kmData.push({
+        time: 0,
+        survival: 1.0,
+        lower: 1.0,
+        upper: 1.0
+    });
+
+    let idx = 0;
+
+    while (idx < cleaned.length) {
+        const currentTime = cleaned[idx].time;
+
+        let nEventsAtThisTime = 0;
+        let nTotalAtThisTime = 0;
+
+        const thisTime = currentTime;
+        while (idx < cleaned.length && cleaned[idx].time === thisTime) {
+            nTotalAtThisTime++;
+            if (cleaned[idx].event === 1) {
+                nEventsAtThisTime++;
+            }
+            idx++;
+        }
+
+        // r_j = 'atRisk' just prior to t_j
+        const rj = atRisk;
+        const dj = nEventsAtThisTime;
+
+        // If no events at this time, survival does not jump down
+        if (dj > 0) {
+            const newSurv = prevSurv * (1 - dj / rj);
+            // Greenwood increment
+            const increment = dj / (rj * (rj - dj));
+            prevVarTerm += increment;
+
+            // variance of S(t_j)
+            const varSurv = (newSurv * newSurv) * prevVarTerm;
+            const sdSurv = Math.sqrt(varSurv);
+            const z = 1.96; // ~95% normal approximation
+            const lower = Math.max(0, newSurv - z * sdSurv);
+            const upper = Math.min(1, newSurv + z * sdSurv);
+
+            prevSurv = newSurv;
+
+            kmData.push({
+                time: thisTime,
+                survival: newSurv,
+                lower,
+                upper
+            });
+        }
+        else {
+            // push a point in case we want a step at an event-free time
+            kmData.push({
+                time: thisTime,
+                survival: prevSurv,
+                lower: Math.max(0, prevSurv - 1e-8),
+                upper: Math.min(1, prevSurv + 1e-8)
+            });
+        }
+
+        // Everyone who had time == thisTime is no longer at risk after
+        // (whether event or censored).
+        atRisk -= nTotalAtThisTime;
+    }
+
+    return kmData;
+}
+
+
 export function estimateWeibullParameters(empiricalCdf, linearPredictors) {
     let ages = new Float64Array(empiricalCdf.map((x) => x.age));
     let empCdf = new Float64Array(empiricalCdf.map((x) => x.cdf));
@@ -208,31 +351,30 @@ export async function getSnpsInfo(pgsId, build) {
 
 
 export function matchCasesControls(cases, controls, controlsPerCase = 1) {
-    const ENTRY_IDX = 1;
-    const ONSET_IDX = 5;
-
     const results = [];
-
     const baseControls = Math.floor(controlsPerCase);
-    const extraControlChance = controlsPerCase - baseControls;
-
+    const extraControlChance = (controlsPerCase - baseControls) / 100;
     const unusedControls = [...controls];
+    let casesMatched = 0;
 
     for (let caseIndividual of cases) {
-        const caseAgeOfOnset = caseIndividual[ONSET_IDX];
+        const caseAgeOfOnset = caseIndividual[INDEX.ONSET];
+        const caseGender = caseIndividual[INDEX.GENDER];
         const matchedControls = [];
 
         // Try to find `baseControls` number of matches
         for (let j = 0; j < baseControls; j++) {
-            const matchIndex = unusedControls.findIndex(p => p[ENTRY_IDX] === caseAgeOfOnset);
+            const matchIndex = unusedControls.findIndex(p => p[INDEX.ENTRY] === caseAgeOfOnset && p[INDEX.GENDER] === caseGender);
+
             if (matchIndex === -1) break;
+
             matchedControls.push(unusedControls.splice(matchIndex, 1)[0]);
         }
 
         // If enough base controls were found, maybe add an extra
         if (matchedControls.length === baseControls) {
             if (Math.random() < extraControlChance) {
-                const matchIndex = unusedControls.findIndex(p => p[ENTRY_IDX] === caseAgeOfOnset);
+                const matchIndex = unusedControls.findIndex(p => p[INDEX.ENTRY] === caseAgeOfOnset);
                 if (matchIndex !== -1) {
                     matchedControls.push(unusedControls.splice(matchIndex, 1)[0]);
                 }
@@ -240,7 +382,9 @@ export function matchCasesControls(cases, controls, controlsPerCase = 1) {
 
             results.push(caseIndividual, ...matchedControls);
         }
+
+        casesMatched++;
     }
 
-    return { results };
+    return { casesMatched, results };
 }

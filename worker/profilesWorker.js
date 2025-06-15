@@ -1,31 +1,36 @@
-importScripts(
-    'https://cdnjs.cloudflare.com/ajax/libs/pako/1.0.11/pako.min.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/localforage/1.9.0/localforage.min.js'
-);
-
 self.onmessage = async (e) => {
     const {
-        workerId, snpsInfo, totalChunks, chunkSize, chunkOffset,
-        totalWorkers, minAge, maxAge, minFollow, maxFollow, k, b
+        taskId,
+        snpsInfo,
+        totalProfiles,
+        chunkSize,
+        gender,
+        minAge,
+        maxAge,
+        minFollow,
+        maxFollow,
+        k,
+        b
     } = e.data;
 
     try {
+        const { processProfiles } = await import('../syntheticDataGenerator.js');
         const {
-            processProfiles
-        } = await import('../syntheticDataGenerator.js');
-        /* global localforage, pako */
+            compressAndStoreResults,
+            reportProgress,
+            reportComplete
+        } = await import('../utils/workerUtils.js');
 
-        const workerChunks = [];
-        for (let i = chunkOffset; i < totalChunks; i += totalWorkers) {
-            workerChunks.push(i);
-        }
+        const totalChunks = Math.ceil(totalProfiles / chunkSize);
+        let processedCount = 0;
 
-        for (let idx = 0; idx < workerChunks.length; idx++) {
-            const chunkIndex = workerChunks[idx];
-
-            const chunkData = await processProfiles(
+        for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+            const currentChunkSize = Math.min(chunkSize, totalProfiles - processedCount);
+            const forageKey = `${taskId}_chunk_${chunkIndex}`;
+            const profiles = await processProfiles(
                 snpsInfo,
-                chunkSize,
+                currentChunkSize,
+                gender,
                 minAge,
                 maxAge,
                 minFollow,
@@ -34,20 +39,15 @@ self.onmessage = async (e) => {
                 b
             );
 
-            const compressed = pako.deflate(JSON.stringify(chunkData));
-
-            await localforage.setItem(
-                `worker_${workerId}_chunk_${chunkIndex}`,
-                compressed
-            );
-
-            const progress = Math.floor((idx + 1) / workerChunks.length * 100);
-            self.postMessage({ type: 'progress', progress });
+            await compressAndStoreResults(forageKey, profiles);
+            processedCount += currentChunkSize;
+            reportProgress(processedCount, totalProfiles);
         }
 
-        self.postMessage({ type: 'complete' });
+        reportComplete();
 
     } catch (error) {
-        self.postMessage({ type: 'error', error: error.message });
+        const { reportError } = await import('../utils/workerUtils.js');
+        reportError(error);
     }
 };

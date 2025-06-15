@@ -1,30 +1,27 @@
-importScripts(
-    'https://cdnjs.cloudflare.com/ajax/libs/pako/1.0.11/pako.min.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/localforage/1.9.0/localforage.min.js'
-);
-
 self.onmessage = async (e) => {
     const {
-        workerId, snpsInfo, chunkSize, numberOfCases, controlsPerCase,
+        taskId, snpsInfo, numberOfCases, controlsPerCase, chunkSize, gender,
         minAge, maxAge, minFollow, maxFollow, k, b
     } = e.data;
 
     try {
-        /* global pako, localforage */
         const { processProfiles, matchCasesControls } = await import('../syntheticDataGenerator.js');
+        const { INDEX } = await import('../constants.js');
+        const {
+            compressAndStoreResults,
+            reportProgress,
+            reportComplete
+        } = await import('../utils/workerUtils.js');
+
         let generatedCases = 0;
         let chunkIndex = 0;
-        let profileIdOffset = 0;
-        const isCaseIdx = 4;
-
-        // Pools to hold unmatched cases and controls
-        let casesPool = [];
-        let controlsPool = [];
 
         while (generatedCases < numberOfCases) {
-            const profiles = await processProfiles(
+            // STEP 1: Generate batch for the defined age group
+            let batchProfiles = await processProfiles(
                 snpsInfo,
                 chunkSize,
+                gender,
                 minAge,
                 maxAge,
                 minFollow,
@@ -32,28 +29,51 @@ self.onmessage = async (e) => {
                 k,
                 b
             );
-            casesPool = profiles.filter(p => p[isCaseIdx] === 1);
-            controlsPool = profiles.filter(p => p[isCaseIdx] === 0);
 
-            const {
-                results
-            } = matchCasesControls(casesPool, controlsPool, controlsPerCase);
-            const compressed = pako.deflate(JSON.stringify(results));
+            const casesPool = batchProfiles.filter(p => p[INDEX.CASE] === 1);
+            if (casesPool.length === 0) continue;
 
-            await localforage.setItem(`worker_${workerId}_chunk_${chunkIndex}`, compressed);
+            // STEP 2: Compute age of onset for each case
+            const onsetAges = casesPool.map(p => p[INDEX.ONSET]);
+            const minOnset = Math.min(...onsetAges);
+            const maxOnset = Math.max(...onsetAges);
 
-            generatedCases += Math.floor(results.length / 2); // 1 case per matched pair
-            profileIdOffset += chunkSize;
+            // STEP 3: Generate controls that could match those onset ages
+            let controlProfiles = await processProfiles(
+                snpsInfo,
+                chunkSize * 2,
+                gender,
+                minOnset,
+                maxOnset,
+                minFollow,
+                maxFollow,
+                k,
+                b
+            );
+
+            const controlsPool = controlProfiles.filter(p => p[INDEX.CASE] === 0);
+
+            if (controlsPool.length === 0) continue;
+
+            // STEP 4: Match cases to controls based on onset age proximity
+            const { casesMatched, results } = matchCasesControls(casesPool, controlsPool, controlsPerCase);
+
+            if (casesMatched === 0) continue;
+
+            const forageKey = `${taskId}_chunk_${chunkIndex}`;
+
+            await compressAndStoreResults(forageKey, results);
+            generatedCases += casesMatched;
             chunkIndex++;
-
-            const progress = Math.min(100, Math.floor((generatedCases / numberOfCases) * 100));
-            self.postMessage({ type: 'progress', progress });
+            reportProgress(generatedCases, numberOfCases);
+            batchProfiles = null;
+            controlProfiles = null;
         }
 
-        self.postMessage({ type: 'progress', progress: 100 });
-        self.postMessage({ type: 'complete' });
+        reportComplete();
 
     } catch (error) {
-        self.postMessage({ type: 'error', error: error.message });
+        const { reportError } = await import('../utils/workerUtils.js');
+        reportError(error);
     }
 };

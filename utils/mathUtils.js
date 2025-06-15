@@ -4,6 +4,7 @@ export function zeros(x) {
     for (let i = 0; i < x; ++i) {
         r[i] = 0;
     }
+
     return r;
 }
 
@@ -19,6 +20,7 @@ export function dot(a, b) {
     for (let i = 0; i < a.length; ++i) {
         ret += a[i] * b[i];
     }
+
     return ret;
 }
 
@@ -40,9 +42,12 @@ export function weightedSum(ret, w1, v1, w2, v2) {
 
 export function empiricalCdf(incidenceRates) {
     let cumulativeHazard = 0;
+
     const cdfArray = incidenceRates.map((ageRate) => {
         cumulativeHazard += ageRate.rate;
+
         const cdf = 1 - Math.exp(-cumulativeHazard);
+
         return { age: ageRate.age, cdf };
     });
 
@@ -52,6 +57,7 @@ export function empiricalCdf(incidenceRates) {
 export function calculateRates(timePoints, timeOfOnset) {
     return timePoints.map(t => {
         let count = timeOfOnset.filter(time => time < t).length;
+
         return count / timeOfOnset.length;
     });
 }

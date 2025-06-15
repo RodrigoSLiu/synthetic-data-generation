@@ -1,4 +1,5 @@
 import { httpRequest } from './httpUtils.js';
+import { GENDER } from '../constants.js';
 
 
 export async function loadScript(url) {
@@ -11,23 +12,24 @@ export async function loadScript(url) {
     });
 }
 
+
 export async function loadDependencies(urls) {
     await Promise.all(urls.map(loadScript));
+
     const pako = window.pako;
     const localforage = window.localforage;
+    const Chart = window.Chart;
+    const d3 = window.d3;
 
-    if (!pako) {
-        throw new Error('Pako library is not loaded.');
-    }
-
-    if (!localforage) {
-        throw new Error('LocalForage library is not loaded.');
+    if (!pako || !localforage || !Chart || !d3) {
+        throw new Error('One or more dependencies failed to load.');
     }
 
     console.log('All dependencies loaded successfully.');
 
-    return [pako, localforage];
+    return { pako, localforage, Chart, d3 };
 }
+
 
 export async function loadScore(entry = 'PGS000004', build = 38) {
     if (!isNaN(Number(entry))) {
@@ -48,6 +50,7 @@ export async function loadScore(entry = 'PGS000004', build = 38) {
     }
 }
 
+
 export async function loadCountries() {
     const countrySelect = document.getElementById('countrySelect');
 
@@ -55,6 +58,16 @@ export async function loadCountries() {
         const response = await httpRequest('https://api.worldbank.org/v2/country?format=json&per_page=300');
         const data = await response.json();
         const countries = data[1];
+
+        countrySelect.innerHTML = '';
+
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Select a country';
+        placeholder.disabled = true;
+        placeholder.selected = true;
+        placeholder.hidden = true;
+        countrySelect.appendChild(placeholder);
 
         // Filter out aggregates and sort alphabetically
         const realCountries = countries
@@ -73,6 +86,7 @@ export async function loadCountries() {
         countrySelect.innerHTML = `<option value="">Failed to load countries</option>`;
     }
 }
+
 
 export async function loadPopulation() {
     const countryISO = document.getElementById('countrySelect').value;
@@ -127,8 +141,8 @@ export async function loadPopulation() {
             const maValue = maResponse[1][0]?.value ?? null;
 
             populationData.ageGenderPercentages[ageGroups[i]] = {
-                FE: feValue,
-                MA: maValue
+                [GENDER.FEMALE]: feValue,
+                [GENDER.MALE]: maValue
             };
         }
 

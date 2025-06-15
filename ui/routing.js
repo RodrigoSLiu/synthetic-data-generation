@@ -9,22 +9,33 @@ export function handleRouting(event) {
     showPage(pageId);
 }
 
-// Private implementation details
 function setupNavigationLinks() {
     document.querySelectorAll('.nav-links a').forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
-            // Use currentTarget instead of target
-            const pageId = e.currentTarget.dataset.page;
-            console.log('Navigating to:', pageId);
+            const page = link.getAttribute('data-page');
 
-            if (!pageId) {
-                console.error('Missing data-page attribute on:', e.currentTarget);
-                return;
+            // Remove 'active' from all nav links
+            document.querySelectorAll('.nav-links a').forEach(nav => {
+                nav.classList.remove('active');
+            });
+
+            // Add 'active' to the clicked link
+            link.classList.add('active');
+
+            // Show the clicked page and hide others
+            document.querySelectorAll('main .page').forEach(section => {
+                section.classList.toggle('active', section.id === page);
+            });
+
+            // Show or hide shared parameters
+            const sharedParams = document.getElementById('sharedParameters');
+            if (page === 'tutorial') {
+                sharedParams.style.display = 'none';
             }
-
-            showPage(pageId);
-            history.pushState({ page: pageId }, '', `#${pageId}`);
+            else {
+                sharedParams.style.display = 'block';
+            }
         });
     });
 }

@@ -1,14 +1,14 @@
-export function updateLoadingProgress(percentage) {
-    const bar = document.getElementById('progressBar');
-    if (bar) {
-        bar.style.width = `${percentage}%`;
-    }
-}
+import {
+    distributeProfilesByAgeGroups,
+    getAgeGroupsBetween,
+    updateLoadingProgress
+} from '../syntheticDataGenerator.js';
 
 
 export async function handleSnpsInfo(pgsIdInput, incidenceRateFile, pgsModelFile) {
     return new Promise((resolve, reject) => {
         const snpWorker = new Worker('worker/snpsWorker.js');
+
         snpWorker.postMessage({
             pgsId: pgsIdInput,
             incidenceRateFile,
@@ -16,11 +16,14 @@ export async function handleSnpsInfo(pgsIdInput, incidenceRateFile, pgsModelFile
         });
 
         snpWorker.onmessage = (e) => {
-            const { type, snpsInfo, predictedIncidenceRate, k, b } = e.data;
+            const { type, snpsInfo, observedIncidenceRate, predictedIncidenceRate, k, b } = e.data;
 
             if (type === 'meta') {
                 snpWorker.terminate();
-                resolve({ snpsInfo, predictedIncidenceRate, k, b });
+                resolve({ snpsInfo, observedIncidenceRate, predictedIncidenceRate, k, b });
+            }
+            else if (e.data.type === 'error') {
+                console.error(`Snp Worker error:`, e.data.error);
             }
         };
 
@@ -32,115 +35,174 @@ export async function handleSnpsInfo(pgsIdInput, incidenceRateFile, pgsModelFile
 }
 
 
-export async function handleProfileRetrieval(config, snpsInfo, k, b, incidenceRateFile, pgsModelFile, loadingScreen, onComplete) {
-    /* global localforage */
+function startWorkerPool(workerScript, tasks, loadingScreen) {
+    return new Promise((resolve, reject) => {
+        const workerCount = 4;
+        const workers = Array(workerCount).fill(null);
+        let activeWorkers = 0;
+        let completedTasks = 0;
+        const totalTasks = tasks.length;
+        const progressMap = Array(workerCount).fill(0);
+
+        const updateOverallProgress = () => {
+            const totalProgress = progressMap.reduce((sum, p) => sum + p, 0);
+            const averageProgress = totalProgress / workerCount;
+            updateLoadingProgress(averageProgress);
+        };
+
+        const finishProcessing = () => {
+            workers.forEach(worker => {
+                if (worker) worker.terminate();
+            });
+
+            loadingScreen.style.display = 'none';
+            resolve(); // <== This will now work correctly
+        };
+
+        const processNextTask = (workerIndex) => {
+            if (tasks.length === 0) {
+                workers[workerIndex] = null;
+                activeWorkers--;
+
+                if (activeWorkers === 0 && completedTasks === totalTasks) finishProcessing();
+                return;
+            }
+
+            const task = tasks.shift();
+            const worker = new Worker(workerScript);
+            workers[workerIndex] = worker;
+
+            worker.postMessage({ workerId: workerIndex, ...task });
+
+            worker.onmessage = (e) => {
+                if (e.data.type === 'progress') {
+                    progressMap[workerIndex] = e.data.progress;
+                    updateOverallProgress();
+                }
+                else if (e.data.type === 'complete') {
+                    worker.terminate();
+                    completedTasks++;
+                    processNextTask(workerIndex);
+
+                    if (completedTasks === totalTasks) finishProcessing();
+                }
+                else if (e.data.type === 'error') {
+                    console.error(`Worker ${workerIndex} error:`, e.data.error);
+                    worker.terminate();
+                    activeWorkers--;
+                    reject(new Error(`Worker ${workerIndex} error: ${e.data.error}`));
+                }
+            };
+
+            worker.onerror = (error) => {
+                console.error(`Worker ${workerIndex} error:`, error.message);
+                alert(`Error during data generation: ${error.message}`);
+                worker.terminate();
+                activeWorkers--;
+                reject(new Error(`Worker ${workerIndex} error: ${error.message}`));
+            };
+        };
+
+        for (let i = 0; i < workerCount; i++) {
+            if (tasks.length > 0) {
+                activeWorkers++;
+                processNextTask(i);
+            }
+        }
+
+        if (totalTasks === 0) {
+            loadingScreen.style.display = 'none';
+            resolve(); // Resolve immediately if no tasks
+        }
+    });
+}
+
+
+export async function handleProfileRetrieval(config, snpsInfo, k, b, incidenceRateFile, pgsModelFile, loadingScreen) {
     loadingScreen.style.display = 'flex';
     const {
-        totalProfiles, chunkSize, minAge, maxAge, minFollowUp, maxFollowUp
+        totalProfiles, minAge, maxAge, minFollowUp, maxFollowUp, populationData, gender
     } = config;
-    const totalChunks = 1;//Math.ceil(totalProfiles / chunkSize);
-    const workersCount = 1;
+    const selectedAgeGroups = getAgeGroupsBetween(minAge, maxAge, populationData.ageGenderPercentages);
+    const profilesByAgeGroup = distributeProfilesByAgeGroups(totalProfiles, minAge, maxAge, populationData, gender, selectedAgeGroups);
 
-    let completed = 0;
+    const tasks = [];
+    let taskId = 0;
 
-    for (let i = 0; i < workersCount; i++) {
-        const profileWorker = new Worker('worker/profilesWorker.js');
+    Object.entries(profilesByAgeGroup).forEach(([currentGender, groupMap]) => {
+        Object.entries(groupMap).forEach(([ageGroup, count]) => {
+            if (count <= 0) return;
 
-        profileWorker.postMessage({
-            workerId: i,
-            snpsInfo,
-            totalChunks,
-            chunkSize: chunkSize,
-            chunkOffset: i, // So each worker starts at different points
-            totalWorkers: workersCount,
-            minAge: minAge,
-            maxAge: maxAge,
-            minFollow: minFollowUp,
-            maxFollow: maxFollowUp,
-            k,
-            b
+            const startAge = parseInt(ageGroup.substring(0, 2));
+            const endAge = parseInt(ageGroup.substring(2));
+            const chunkSize = 25_000;
+            const numChunks = Math.ceil(count / chunkSize);
+
+            for (let i = 0; i < numChunks; i++) {
+                const profilesInTask = Math.min(chunkSize, count - i * chunkSize);
+
+                tasks.push({
+                    taskId: `task_${taskId++}`,
+                    snpsInfo,
+                    totalProfiles: profilesInTask,
+                    chunkSize,
+                    gender: currentGender,
+                    minAge: startAge,
+                    maxAge: endAge,
+                    minFollow: minFollowUp,
+                    maxFollow: maxFollowUp,
+                    k,
+                    b
+                });
+            }
         });
+    });
 
-        profileWorker.onmessage = async (e) => {
-            if (e.data.type === 'progress') {
-                updateLoadingProgress(e.data.progress);
-            }
-            else if (e.data.type === 'complete') {
-                completed++;
-                profileWorker.terminate();
-
-                if (completed === workersCount) {
-                    loadingScreen.style.display = 'none';
-
-                    if (onComplete) onComplete();
-                }
-            }
-        };
-
-        profileWorker.onerror = (error) => {
-            console.error('Worker error:', error.message);
-            alert('Error during data generation: ' + error.message);
-            loadingScreen.style.display = 'none';
-            profileWorker.terminate();
-        };
-    }
+    await startWorkerPool('worker/profilesWorker.js', tasks, loadingScreen);
 }
 
 
 export async function handleCaseControlRetrieval(
-    config, controlsPerCase, snpsInfo, k, b, incidenceRateFile, pgsModelFile, loadingScreen, onComplete
+    config, controlsPerCase, snpsInfo, k, b, incidenceRateFile, pgsModelFile, loadingScreen
 ) {
-    const {
-        totalProfiles, chunkSize, minAge, maxAge, minFollowUp, maxFollowUp
-    } = config;
-    const targetCases = totalProfiles;
-    const numberOfWorkers = 4;
-    const casesPerWorker = Math.ceil(targetCases / numberOfWorkers);
-
     loadingScreen.style.display = 'flex';
+    const {
+        totalProfiles, chunkSize, minAge, maxAge, minFollowUp, maxFollowUp, populationData, gender
+    } = config;
 
-    let completedWorkers = 0;
-    let totalProgress = Array(numberOfWorkers).fill(0); // track per-worker progress
+    const selectedAgeGroups = getAgeGroupsBetween(minAge, maxAge, populationData.ageGenderPercentages);
+    const profilesByAgeGroup = distributeProfilesByAgeGroups(totalProfiles, minAge, maxAge, populationData, gender, selectedAgeGroups);
+    const tasks = [];
+    let taskId = 0;
 
-    for (let i = 0; i < numberOfWorkers; i++) {
-        const caseControlWorker = new Worker('worker/caseControlWorker.js');
+    Object.entries(profilesByAgeGroup).forEach(([currentGender, groupMap]) => {
+        Object.entries(groupMap).forEach(([ageGroup, count]) => {
+            if (count <= 0) return;
 
-        caseControlWorker.postMessage({
-            workerId: i,
-            snpsInfo,
-            chunkSize: chunkSize,
-            numberOfCases: casesPerWorker,
-            controlsPerCase: controlsPerCase,
-            minAge: minAge,
-            maxAge: maxAge,
-            minFollow: minFollowUp,
-            maxFollow: maxFollowUp,
-            k,
-            b
+            const startAge = parseInt(ageGroup.substring(0, 2));
+            const endAge = parseInt(ageGroup.substring(2));
+            const cases = count;
+            const totalInGroup = cases + cases * controlsPerCase;
+            const numChunks = Math.ceil(totalInGroup / chunkSize);
+
+            for (let i = 0; i < numChunks; i++) {
+                tasks.push({
+                    taskId: `task_${taskId++}`,
+                    snpsInfo,
+                    numberOfCases: cases,
+                    controlsPerCase,
+                    chunkSize,
+                    gender: currentGender,
+                    minAge: startAge,
+                    maxAge: endAge,
+                    minFollow: minFollowUp,
+                    maxFollow: maxFollowUp,
+                    k,
+                    b
+                });
+            }
         });
+    });
 
-        caseControlWorker.onmessage = async (e) => {
-            if (e.data.type === 'progress') {
-                totalProgress[i] = e.data.progress;
-                const averageProgress = totalProgress.reduce((a, b) => a + b, 0) / numberOfWorkers;
-                updateLoadingProgress(averageProgress);
-            }
-            else if (e.data.type === 'complete') {
-                caseControlWorker.terminate();
-                completedWorkers++;
-
-                if (completedWorkers === numberOfWorkers) {
-                    loadingScreen.style.display = 'none';
-                    if (onComplete) onComplete();
-                }
-            }
-        };
-
-        caseControlWorker.onerror = (error) => {
-            console.error('Worker error:', error.message);
-            alert('Error during data generation: ' + error.message);
-            loadingScreen.style.display = 'none';
-            caseControlWorker.terminate();
-        };
-    }
+    await startWorkerPool('worker/caseControlWorker.js', tasks, loadingScreen);
 }

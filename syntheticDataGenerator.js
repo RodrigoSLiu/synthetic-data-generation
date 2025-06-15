@@ -20,12 +20,24 @@ import {
     matchCasesControls,
     dataToProfilesBlob,
     dataToVCF,
-    downloadFile,
     processHeader,
     handleSnpsInfo,
-    downloadProfilesFromChunks,
+    downloadCohortFromChunks,
     initializeRouting,
-    handleRouting
+    handleRouting,
+    getAgeGroupsBetween,
+    distributeProfilesByAgeGroups,
+    loadPopulation,
+    handleCaseControlRetrieval,
+    handleProfileRetrieval,
+    showAlert,
+    hideAlert,
+    updateLoadingProgress,
+    displayResults,
+    generateKaplanMeierData,
+    getCohort,
+    downloadVcfFromChunks,
+    displayResultsHTML
 } from './index.js';
 
 export {
@@ -50,10 +62,22 @@ export {
     matchCasesControls,
     dataToProfilesBlob,
     dataToVCF,
-    downloadFile,
     processHeader,
     handleSnpsInfo,
-    downloadProfilesFromChunks,
+    downloadCohortFromChunks,
     initializeRouting,
-    handleRouting
+    handleRouting,
+    getAgeGroupsBetween,
+    distributeProfilesByAgeGroups,
+    loadPopulation,
+    handleCaseControlRetrieval,
+    handleProfileRetrieval,
+    showAlert,
+    hideAlert,
+    updateLoadingProgress,
+    displayResults,
+    generateKaplanMeierData,
+    getCohort,
+    downloadVcfFromChunks,
+    displayResultsHTML
 };

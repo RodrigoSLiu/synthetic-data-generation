@@ -10,17 +10,35 @@
 }
 
 body {
+    padding: 80px 10px 10px 10px;
     font-family: 'Segoe UI', system-ui, sans-serif;
     background: var(--background);
     color: var(--text);
     line-height: 1.6;
     margin: 0;
-    padding: 20px;
+}
+
+/* ======================
+   FOCUS
+   ====================== */
+
+a:focus, button:focus, input:focus, select:focus {
+    outline: 3px solid var(--secondary);
+    outline-offset: 2px;
 }
 
 /* ======================
    HEADER STYLES
    ====================== */
+.header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 999;
+    width: 100%;
+}
+
 /* ======================
    HEADER & NAVIGATION
    ====================== */
@@ -59,12 +77,13 @@ body {
 }
 
 .nav-links a:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.3);
     text-decoration: underline;
 }
 
 .nav-links .active {
-    color: var(--secondary);
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--background);
     text-decoration: underline;
 }
 
@@ -84,13 +103,28 @@ body {
 }
 
 /* ======================
+   FOOTER STYLES
+   ====================== */
+
+.footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 0 20px;
+    gap: 1rem;
+}
+
+/* ======================
    FORM STYLES
    ====================== */
 .input-group {
-    margin: 1rem 0;
     max-width: 600px;
-    margin-left: auto;
-    margin-right: auto;
+    margin: 1rem auto;
 }
 
 input[type="text"],
@@ -148,6 +182,75 @@ label {
     margin: 0 0.5rem;
 }
 
+.country-select, .gender-select {
+    width: 100%;
+    max-width: 300px;
+    padding: 12px 20px 12px 16px;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text, #333);
+    border: 2px solid #ddd;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    background-color: var(--background);
+
+    /* Custom arrow */
+    background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2212%22%20height%3D%227%22%20viewBox%3D%220%200%2012%207%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M1%200l5%205%205-5%22%20stroke%3D%22%233498db%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right center;
+    background-size: 12px 7px;
+    background-origin: content-box;
+    background-clip: content-box;
+
+    /* Remove native arrow */
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+
+    /* Remove inner white box on click */
+    outline: none;
+}
+
+.country-select:focus, .gender-select:focus {
+    border-color: var(--secondary, #3498db);
+    box-shadow: 0 0 8px rgba(52, 152, 219, 0.3);
+    outline: none;
+    background-color: var(--background);
+}
+
+/* ======================
+   ALERTS
+   ====================== */
+
+.alert {
+    display: inline-block;
+    background-color: #f8d7da;
+    color: #721c24;
+    padding: 6px 10px;
+    font-size: 0.9rem;
+    border: 1px solid #f5c6cb;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    margin-top: 4px;
+    max-width: fit-content;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.hidden {
+    display: none;
+}
+
+.fade {
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.fade.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
 /* ======================
    BUTTON STYLES
    ====================== */
@@ -160,14 +263,54 @@ label {
 }
 
 .primary-button {
-    background: var(--secondary);
+    position: absolute;
+    bottom: 20px;
+    right: 15px;
+    padding: 15px 30px;
+    font-size: 1rem;
+    border-radius: 35px;
+    background-color: var(--secondary);
     color: white;
     border: none;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    z-index: 100;
 }
 
 .primary-button:hover {
     background: #2980b9;
     transform: translateY(-2px);
+}
+
+.download-button {
+    padding: 12px 25px;
+    font-size: 0.95rem;
+    border-radius: 30px;
+    background-color: #1DC0E2;
+    color: white;
+    border: none;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.download-button:hover {
+    background: #0ebef1;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 12px rgba(0, 0, 0, 0.25);
+}
+
+.download-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 /* ======================
@@ -249,10 +392,83 @@ label {
     }
 }
 
+/* ======================
+   RESULTS
+   ====================== */
+
 .results {
-    margin-top: 2rem;
-    padding: 2rem;
+    width: 100%;
+    height: 90vh;
+    padding: 40px 0 0 0;
     background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+}
+
+
+.results.hidden {
+    display: none;
+}
+
+#prospectiveResults {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+}
+
+/* Rest of your existing CSS remains the same */
+.charts-scroll-container {
+    flex: 1;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    display: flex;
+}
+
+.charts-carousel {
+    display: flex;
+    height: 100%;
+}
+
+.chart-slide {
+    flex: 0 0 100%;
+    height: 100%;
+    padding: 20px;
+    box-sizing: border-box;
+    overflow-y: hidden;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#expectedIncidenceChartProspective {
+    width: 100%;
+    max-width: 75%;
+    margin: 0 auto 5%;
+}
+
+.kaplan-meier-container {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    min-height: 550px;
+    margin: 0 auto 5%;
+}
+
+.kaplan-meier-container svg {
+    width: 100%;
+    height: 100%;
+    background: white;
 }

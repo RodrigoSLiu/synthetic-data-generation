@@ -1,4 +1,5 @@
 import { generateAlleleDosage, getRsIds, getSnpsInfo } from './geneticUtils.js';
+import { GENDER } from '../constants.js';
 
 // TODO: TESTING PURPOSES
 import { testData } from '../test.js';
@@ -69,7 +70,8 @@ export async function processSnpData(snpData) {
     // Calculate allele dosage frequencies for SNPs with valid rsIDs
     snpInfo.forEach(snp => {
         if (!snp.rsID) {
-            console.warn('Missing SNP ID for:', snp);
+            // TODO: Currently RS Id is not used, so this warning is turned off
+            //console.warn('Missing SNP ID for:', snp);
 
             snp.rsID = snp.id;
         }
@@ -86,14 +88,14 @@ export async function processHeader(snpsInfo) {
     }
 
     // Generate header structure
-    const baseHeader = ['id', 'ageOfEntry', 'ageOfExit', 'prs', 'case', 'ageOfOnset'];
+    const baseHeader = ['id', 'ageOfEntry', 'ageOfExit', 'gender', 'prs', 'case', 'ageOfOnset'];
     const snpHeaders = snpsInfo.map(snp => snp.id);
 
     return [...baseHeader, ...snpHeaders];
 }
 
 
-export async function processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge, minFollowUp, maxFollowUp, k, b) {
+export async function processProfiles(snpsInfo, numberOfProfiles, gender, minAge, maxAge, minFollowUp, maxFollowUp, k, b) {
     if (!snpsInfo.length) {
         throw new Error('No SNPs available for profile generation.');
     }
@@ -152,6 +154,7 @@ export async function processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge
             0, // The correct ID will be given at download
             ageOfEntry,
             ageOfExit,
+            gender === GENDER.FEMALE ? 1 : 0,
             prs,
             isCase,
             rawOnset < ageOfExit ? Math.round(rawOnset) : Infinity,
@@ -179,19 +182,107 @@ export async function processProfiles(snpsInfo, numberOfProfiles, minAge, maxAge
 
         data.push(profileArray);
     }
-    console.log(ages);
-    console.log(
-        `Profiles creation complete:\n` +
-        `   - Average total prs: ${totalAvg / numberOfProfiles}\n` +
-        `   - Max Dosage: ${maxDosage[0] + maxDosage[1] + maxDosage[2]}: \n\t0: ${maxDosage[0]} \n\t1: ${maxDosage[1]} \n\t2: ${maxDosage[2]}\n` +
-        `   - Cases created: ${numberOfCases}\n` +
-        `   - Controls created: ${data.length - numberOfCases}\n` +
-        `   - Case to Control ratio: ${(numberOfCases / (data.length - numberOfCases)).toFixed(2) * 100}%\n` +
-        `   - Max PRS: ${maxPrs.toFixed(4)} (Is case: ${maxIsCase})\n` +
-        `   - Min PRS: ${minPrs.toFixed(4)} (Is case: ${minIsCase})\n` +
-        `   - Case Average PRS: ${(caseAvg / numberOfCases).toFixed(4)}\n` +
-        `   - Control Average PRS: ${(controlAvg / (data.length - numberOfCases)).toFixed(4)}\n`
-    );
+
+    // console.log(
+    //     `Profiles creation complete:\n` +
+    //     `   - Average total prs: ${totalAvg / numberOfProfiles}\n` +
+    //     `   - Max Dosage: ${maxDosage[0] + maxDosage[1] + maxDosage[2]}: \n\t0: ${maxDosage[0]} \n\t1: ${maxDosage[1]} \n\t2: ${maxDosage[2]}\n` +
+    //     `   - Cases created: ${numberOfCases}\n` +
+    //     `   - Controls created: ${data.length - numberOfCases}\n` +
+    //     `   - Case to Control ratio: ${(numberOfCases / (data.length - numberOfCases)).toFixed(2) * 100}%\n` +
+    //     `   - Max PRS: ${maxPrs.toFixed(4)} (Is case: ${maxIsCase})\n` +
+    //     `   - Min PRS: ${minPrs.toFixed(4)} (Is case: ${minIsCase})\n` +
+    //     `   - Case Average PRS: ${(caseAvg / numberOfCases).toFixed(4)}\n` +
+    //     `   - Control Average PRS: ${(controlAvg / (data.length - numberOfCases)).toFixed(4)}\n`
+    // );
+    console.log('Worker created cohort batch');
 
     return data;
+}
+
+
+export function getAgeGroupsBetween(minAge, maxAge, populationAgePercentages) {
+    const allGroups = Object.keys(populationAgePercentages);
+    const parsedGroups = allGroups.map(group => {
+        const start = parseInt(group.substring(0, 2));
+        const end = parseInt(group.substring(2));
+
+        return { group, start, end };
+    });
+
+    return parsedGroups
+        .filter(({ start, end }) => start <= maxAge && end >= minAge)
+        .map(({ group }) => group);
+}
+
+export function distributeProfilesByAgeGroups(totalProfiles, minAge, maxAge, populationData, gender = GENDER.BOTH, selectedAgeGroups) {
+    const profilesByAgeGroup = { [GENDER.MALE]: {}, [GENDER.FEMALE]: {} };
+
+    // Compute total population by gender
+    let totalFemalePercentage = 0;
+    let totalMalePercentage = 0;
+
+    let totalFemalePopulation = populationData.totalFemalePopulation;
+    let totalMalePopulation = populationData.totalMalePopulation;
+
+    selectedAgeGroups.forEach(group => {
+        totalFemalePercentage += populationData.ageGenderPercentages[group]?.[GENDER.FEMALE] || 0;
+        totalMalePercentage += populationData.ageGenderPercentages[group]?.[GENDER.MALE] || 0;
+    });
+
+    if (gender === GENDER.FEMALE || gender === GENDER.MALE) {
+        const genderKey = gender;
+        let totalGenderPercent = 0;
+
+        selectedAgeGroups.forEach(group => {
+            totalGenderPercent += populationData.ageGenderPercentages[group]?.[genderKey] || 0;
+        });
+
+        if (totalGenderPercent === 0) {
+            const uniformCount = Math.floor(totalProfiles / selectedAgeGroups.length);
+            selectedAgeGroups.forEach(group => {
+                profilesByAgeGroup[gender][group] = uniformCount;
+            });
+
+            return profilesByAgeGroup;
+        }
+
+        let totalAssigned = 0;
+
+        selectedAgeGroups.forEach(group => {
+            const groupPercent = populationData.ageGenderPercentages[group]?.[genderKey] || 0;
+            const count = Math.round(totalProfiles * (groupPercent / totalGenderPercent));
+            profilesByAgeGroup[gender][group] = count;
+            totalAssigned += count;
+        });
+
+        const diff = totalProfiles - totalAssigned;
+
+        if (diff !== 0) {
+            const lastGroup = selectedAgeGroups[selectedAgeGroups.length - 1];
+            profilesByAgeGroup[gender][lastGroup] += diff;
+        }
+
+        return profilesByAgeGroup;
+    }
+
+    if (gender === GENDER.BOTH) {
+        const totalPopulation = totalFemalePopulation + totalMalePopulation;
+        const femaleRatio = totalFemalePopulation / totalPopulation;
+        const maleRatio = totalMalePopulation / totalPopulation;
+        const femaleProfiles = Math.round(totalProfiles * femaleRatio);
+        const maleProfiles = totalProfiles - femaleProfiles;
+        const femaleDist = distributeProfilesByAgeGroups(femaleProfiles, minAge, maxAge, populationData, GENDER.FEMALE, selectedAgeGroups);
+        const maleDist = distributeProfilesByAgeGroups(maleProfiles, minAge, maxAge, populationData, GENDER.MALE, selectedAgeGroups);
+
+        // Merge female and male distributions
+        selectedAgeGroups.forEach(group => {
+            profilesByAgeGroup[GENDER.FEMALE][group] = femaleDist[GENDER.FEMALE][group] || 0;
+            profilesByAgeGroup[GENDER.MALE][group] = maleDist[GENDER.MALE][group] || 0;
+        });
+
+        return profilesByAgeGroup;
+    }
+
+    throw new Error(`Invalid gender: ${gender}`);
 }
